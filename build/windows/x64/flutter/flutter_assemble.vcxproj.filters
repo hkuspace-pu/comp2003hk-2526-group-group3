@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\spmn9\Desktop\HKUSpace-Cyber Security\COMP2003HK- Group Project\screen_time_tracker_with_aquarium-main\build\windows\x64\CMakeFiles\919c6b238a331c3b71e5c538d072da71\flutter_windows.dll.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\spmn9\Desktop\HKUSpace-Cyber Security\COMP2003HK- Group Project\screen_time_tracker_with_aquarium-main\build\windows\x64\CMakeFiles\140ef742e08f25742a615e439cc6b6f3\flutter_assemble.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\spmn9\Desktop\HKUSpace-Cyber Security\COMP2003HK- Group Project\screen_time_tracker_with_aquarium-main\windows\flutter\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\spmn9\Desktop\HKUSpace-Cyber Security\COMP2003HK- Group Project\screen_time_tracker_with_aquarium-main\build\windows\x64\flutter\CMakeFiles\flutter_assemble" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{CA85CD95-34FF-3348-96FA-A49897168EF4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
