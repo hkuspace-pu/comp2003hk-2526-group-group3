@@ -3,6 +3,7 @@ import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 import 'data_management_screen.dart';
 import 'help_screen.dart';
+import 'splash_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -350,9 +351,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logout feature coming soon')),
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => const SplashScreen(),
+                ),
               );
             },
             child: const Text(
