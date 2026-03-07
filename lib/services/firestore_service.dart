@@ -234,4 +234,126 @@ class FirestoreService {
         .map((doc) => ActivityLog.fromFirestore(doc.data(), doc.id))
         .toList();
   }
+
+  // ─── Data Export ─────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> exportUserData(String uid) async {
+    final userDoc = await _db.collection('users').doc(uid).get();
+    final sessions = await getFocusSessions(uid);
+    final activities = await getActivityLogs(uid);
+
+    // Convert profile data, handling Timestamp fields
+    final profileData = userDoc.data()!;
+    final cleanProfile = profileData.map((key, value) {
+      if (value is Timestamp) {
+        return MapEntry(key, value.toDate().toIso8601String());
+      }
+      return MapEntry(key, value);
+    });
+
+    return {
+      'exportedAt': DateTime.now().toIso8601String(),
+      'version': '1.0',
+      'profile': cleanProfile,
+      'sessions': sessions
+          .map((s) => {
+                'durationMinutes': s.durationMinutes,
+                'pointsEarned': s.pointsEarned,
+                'startTime': s.startTime.toIso8601String(),
+                'endTime': s.endTime.toIso8601String(),
+                'completed': s.completed,
+              })
+          .toList(),
+      'activities': activities
+          .map((a) => {
+                'activityType': a.activityType,
+                'durationMinutes': a.durationMinutes,
+                'mood': a.mood,
+                'notes': a.notes,
+                'pointsEarned': a.pointsEarned,
+                'loggedAt': a.loggedAt.toIso8601String(),
+              })
+          .toList(),
+    };
+  }
+
+  Future<void> importUserData(String uid, Map<String, dynamic> data) async {
+    final profile = data['profile'] as Map<String, dynamic>?;
+    final sessions = data['sessions'] as List<dynamic>?;
+    final activities = data['activities'] as List<dynamic>?;
+
+    // Restore profile stats
+    if (profile != null) {
+      await _db.collection('users').doc(uid).update({
+        'totalPoints': profile['totalPoints'] ?? 0,
+        'totalFocusMinutes': profile['totalFocusMinutes'] ?? 0,
+        'sessionCount': profile['sessionCount'] ?? 0,
+        'activityCount': profile['activityCount'] ?? 0,
+        'currentStreak': profile['currentStreak'] ?? 0,
+        'level': profile['level'] ?? 1,
+        'ownedFish': profile['ownedFish'] ?? [],
+        'ownedDecorations': profile['ownedDecorations'] ?? [],
+        'foodStock': profile['foodStock'] ?? 0,
+      });
+    }
+
+    // Restore sessions
+    if (sessions != null) {
+      for (final s in sessions) {
+        await _db.collection('users').doc(uid).collection('sessions').add({
+          'uid': uid,
+          'durationMinutes': s['durationMinutes'],
+          'pointsEarned': s['pointsEarned'],
+          'startTime': DateTime.parse(s['startTime']),
+          'endTime': DateTime.parse(s['endTime']),
+          'completed': s['completed'],
+        });
+      }
+    }
+
+    // Restore activities
+    if (activities != null) {
+      for (final a in activities) {
+        await _db.collection('users').doc(uid).collection('activities').add({
+          'uid': uid,
+          'activityType': a['activityType'],
+          'durationMinutes': a['durationMinutes'],
+          'mood': a['mood'],
+          'notes': a['notes'],
+          'pointsEarned': a['pointsEarned'],
+          'loggedAt': DateTime.parse(a['loggedAt']),
+        });
+      }
+    }
+  }
+
+  Future<void> deleteAllUserData(String uid) async {
+    // Delete sessions
+    final sessions =
+        await _db.collection('users').doc(uid).collection('sessions').get();
+    for (final doc in sessions.docs) {
+      await doc.reference.delete();
+    }
+
+    // Delete activities
+    final activities =
+        await _db.collection('users').doc(uid).collection('activities').get();
+    for (final doc in activities.docs) {
+      await doc.reference.delete();
+    }
+
+    // Reset profile stats
+    await _db.collection('users').doc(uid).update({
+      'totalPoints': 0,
+      'totalFocusMinutes': 0,
+      'sessionCount': 0,
+      'activityCount': 0,
+      'currentStreak': 0,
+      'level': 1,
+      'ownedFish': [],
+      'ownedDecorations': [],
+      'foodStock': 0,
+      'lastActiveDate': null,
+    });
+  }
 }
