@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyCdX9ieBvIp-r_hmDRY28B35ki0gYLaw94</string>
+	<key>GCM_SENDER_ID</key>
+	<string>462764864604</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.screenTimeTrackerWithAquarium</string>
+	<key>PROJECT_ID</key>
+	<string>focus-aquarium</string>
+	<key>STORAGE_BUCKET</key>
+	<string>focus-aquarium.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:462764864604:ios:50af122604568c345ca299</string>
+</dict>
+</plist>
