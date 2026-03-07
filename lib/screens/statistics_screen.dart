@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/focus_session.dart';
+import '../models/activity_log.dart';
+import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 import 'calendar_screen.dart';
@@ -12,6 +16,84 @@ class StatisticsScreen extends StatefulWidget {
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
   int _selectedTab = 1; // 0: Today, 1: Week, 2: Month
+  final FirestoreService _firestoreService = FirestoreService();
+  bool _isLoading = true;
+
+  List<FocusSession> _sessions = [];
+  List<ActivityLog> _activities = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isLoading = true);
+
+    final now = DateTime.now();
+    DateTime start;
+
+    if (_selectedTab == 0) {
+      start = DateTime(now.year, now.month, now.day);
+    } else if (_selectedTab == 1) {
+      start = now.subtract(const Duration(days: 7));
+    } else {
+      start = now.subtract(const Duration(days: 30));
+    }
+
+    final sessions = await _firestoreService.getSessionsForDateRange(
+      user.uid,
+      start,
+      now,
+    );
+    final activities = await _firestoreService.getActivityLogs(user.uid);
+
+    if (mounted) {
+      setState(() {
+        _sessions = sessions;
+        _activities =
+            activities.where((a) => a.loggedAt.isAfter(start)).toList();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Calculate daily focus minutes for bar chart (last 7 days)
+  Map<String, double> _getDailyFocusHours() {
+    final now = DateTime.now();
+    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final Map<String, double> result = {
+      for (var d in days) d: 0.0,
+    };
+
+    for (final session in _sessions) {
+      final weekday = session.startTime.weekday; // 1=Mon, 7=Sun
+      final dayName = days[weekday - 1];
+      result[dayName] = (result[dayName] ?? 0) + session.durationMinutes / 60;
+    }
+
+    return result;
+  }
+
+  // Calculate activity type distribution
+  Map<String, int> _getActivityDistribution() {
+    final Map<String, int> result = {};
+    for (final activity in _activities) {
+      result[activity.activityType] = (result[activity.activityType] ?? 0) + 1;
+    }
+    return result;
+  }
+
+  int get _totalFocusMinutes =>
+      _sessions.fold(0, (sum, s) => sum + s.durationMinutes);
+
+  int get _totalPoints =>
+      _sessions.fold(0, (sum, s) => sum + s.pointsEarned) +
+      _activities.fold(0, (sum, a) => sum + a.pointsEarned);
 
   @override
   Widget build(BuildContext context) {
@@ -21,14 +103,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_today),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CalendarScreen(),
-                ),
-              );
-            },
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CalendarScreen(),
+              ),
+            ),
           ),
         ],
       ),
@@ -56,122 +136,145 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Focus Time Trend
-                const Text(
-                  '📊 Focus Time Trend',
-                  style: TextStyle(
-                    color: AppColors.textWhite,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                if (_isLoading)
+                  const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.accentOrange,
+                    ),
+                  )
+                else ...[
+                  // Focus Time Trend (bar chart)
+                  const Text(
+                    '📊 Focus Time Trend',
+                    style: TextStyle(
+                      color: AppColors.textWhite,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBackground,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      // Simple chart representation
-                      SizedBox(
-                        height: 150,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildBar('Mon', 2.0, 3.0),
-                            _buildBar('Tue', 1.0, 3.0),
-                            _buildBar('Wed', 3.0, 3.0),
-                            _buildBar('Thu', 2.0, 3.0),
-                            _buildBar('Fri', 0.5, 3.0),
-                            _buildBar('Sat', 1.0, 3.0),
-                            _buildBar('Sun', 0.5, 3.0),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Hours per day',
-                        style: TextStyle(
-                          color: AppColors.textGrey,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBackground,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 150,
+                          child: Builder(builder: (context) {
+                            final dailyHours = _getDailyFocusHours();
+                            final maxHours = dailyHours.values.isEmpty
+                                ? 1.0
+                                : dailyHours.values
+                                            .reduce((a, b) => a > b ? a : b) ==
+                                        0
+                                    ? 1.0
+                                    : dailyHours.values
+                                        .reduce((a, b) => a > b ? a : b);
 
-                // This Week Summary
-                const Text(
-                  '📈 This Week Summary',
-                  style: TextStyle(
-                    color: AppColors.textWhite,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBackground,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildSummaryRow('Total Focus:', '9 hours'),
-                      const SizedBox(height: 12),
-                      _buildSummaryRow('Total Activities:', '12'),
-                      const SizedBox(height: 12),
-                      _buildSummaryRow('Points Earned:', '1,080 💰'),
-                      const SizedBox(height: 12),
-                      _buildSummaryRow('Streak:', '5 days 🔥'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Activity Distribution
-                const Text(
-                  '🎯 Activity Distribution',
-                  style: TextStyle(
-                    color: AppColors.textWhite,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBackground,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      // Simple pie chart representation
-                      SizedBox(
-                        height: 120,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildPieSegment(
-                                '🏃', 'Running', '40%', AppColors.accentOrange),
-                            const SizedBox(width: 20),
-                            _buildPieSegment(
-                                '📚', 'Reading', '30%', AppColors.primaryBlue),
-                            const SizedBox(width: 20),
-                            _buildPieSegment(
-                                '🎨', 'Other', '30%', AppColors.textGrey),
-                          ],
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: dailyHours.entries.map((e) {
+                                return _buildBar(e.key, e.value, maxHours);
+                              }).toList(),
+                            );
+                          }),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Hours per day',
+                          style: TextStyle(
+                            color: AppColors.textGrey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+
+                  // Summary
+                  Text(
+                    _selectedTab == 0
+                        ? '📈 Today\'s Summary'
+                        : _selectedTab == 1
+                            ? '📈 This Week\'s Summary'
+                            : '📈 This Month\'s Summary',
+                    style: const TextStyle(
+                      color: AppColors.textWhite,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBackground,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSummaryRow(
+                          'Focus Sessions:',
+                          '${_sessions.length}',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSummaryRow(
+                          'Total Focus:',
+                          '${(_totalFocusMinutes / 60).toStringAsFixed(1)} hours',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSummaryRow(
+                          'Activities Logged:',
+                          '${_activities.length}',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSummaryRow(
+                          'Points Earned:',
+                          '$_totalPoints 💰',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Activity Distribution
+                  const Text(
+                    '🎯 Activity Distribution',
+                    style: TextStyle(
+                      color: AppColors.textWhite,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBackground,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: _activities.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No activities logged yet',
+                              style: TextStyle(color: AppColors.textGrey),
+                            ),
+                          )
+                        : Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: _getActivityDistribution()
+                                .entries
+                                .map((e) => _buildActivityChip(e.key, e.value))
+                                .toList(),
+                          ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -185,9 +288,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() {
-            _selectedTab = index;
-          });
+          setState(() => _selectedTab = index);
+          _loadData();
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -209,33 +311,29 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Widget _buildBar(String label, double hours, double maxHours) {
-    final heightPercent = hours / maxHours;
+    final heightPercent = maxHours == 0 ? 0.0 : hours / maxHours;
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Text(
-          '${hours.toStringAsFixed(1)}h',
-          style: const TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 10,
+        if (hours > 0)
+          Text(
+            '${hours.toStringAsFixed(1)}h',
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 10),
           ),
-        ),
         const SizedBox(height: 4),
         Container(
           width: 30,
-          height: 100 * heightPercent,
+          height: (100 * heightPercent).clamp(4.0, 100.0),
           decoration: BoxDecoration(
-            color: AppColors.accentOrange,
+            color:
+                hours > 0 ? AppColors.accentOrange : AppColors.cardBackground,
             borderRadius: BorderRadius.circular(4),
           ),
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 10,
-          ),
+          style: const TextStyle(color: AppColors.textGrey, fontSize: 10),
         ),
       ],
     );
@@ -245,60 +343,28 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 16,
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.textWhite,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 16)),
+        Text(value,
+            style: const TextStyle(
+                color: AppColors.textWhite,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  Widget _buildPieSegment(
-      String icon, String label, String percent, Color color) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              icon,
-              style: const TextStyle(fontSize: 24),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textWhite,
-            fontSize: 12,
-          ),
-        ),
-        Text(
-          percent,
-          style: const TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 10,
-          ),
-        ),
-      ],
+  Widget _buildActivityChip(String activityType, int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primaryDarkGrey,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '$activityType ($count)',
+        style: const TextStyle(color: AppColors.textWhite, fontSize: 13),
+      ),
     );
   }
 }
