@@ -127,8 +127,6 @@ class StoreScreen extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => PurchaseConfirmScreen(
                     itemId: itemId,
-                    itemName: item['name'],
-                    itemIcon: item['icon'],
                     itemPrice: item['price'],
                   ),
                 ),
