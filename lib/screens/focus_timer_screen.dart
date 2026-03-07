@@ -18,6 +18,7 @@ class FocusTimerScreen extends StatefulWidget {
 
 class _FocusTimerScreenState extends State<FocusTimerScreen> {
   late int _remainingSeconds;
+  late DateTime _startTime;
   Timer? _timer;
   bool _isPaused = false;
 
@@ -25,6 +26,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
   void initState() {
     super.initState();
     _remainingSeconds = widget.duration * 60;
+    _startTime = DateTime.now();
     _startTimer();
   }
 
@@ -67,6 +69,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
       MaterialPageRoute(
         builder: (context) => FocusCompleteScreen(
           duration: widget.duration,
+          startTime: _startTime,
         ),
       ),
     );

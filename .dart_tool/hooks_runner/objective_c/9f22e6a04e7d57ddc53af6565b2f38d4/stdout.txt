@@ -1,0 +1,58 @@
+Running `(cd /Users/kennywong/.pub-cache/hosted/pub.dev/objective_c-9.3.0/; ANDROID_HOME=/Users/kennywong/Library/Android/sdk TMPDIR=/var/folders/w9/dgccp1_d2_s_v0wr6vl2ykxh0000gn/T/ PATH=/Applications/Xcode.app/Contents/SharedFrameworks/SwiftBuild.framework/Versions/A/PlugIns/SWBBuildService.bundle/Contents/PlugIns/SWBUniversalPlatformPlugin.bundle/Contents/Frameworks/SWBUniversalPlatform.framework/Resources:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/bin:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/usr/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/usr/local/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/local/bin:/Applications/Xcode.app/Contents/Developer/usr/bin:/Applications/Xcode.app/Contents/Developer/usr/local/bin:/Users/kennywong/.local/bin:/Users/kennywong/.pyenv/shims:/Users/kennywong/Library/Android/sdk/tools:/Users/kennywong/Library/Android/sdk/platform-tools:/Users/kennywong/Library/Android/sdk/emulator:/opt/homebrew/lib/ruby/gems/3.4.0/bin:/opt/homebrew/opt/ruby/bin:/opt/homebrew/opt/postgresql@16/bin:/opt/homebrew/opt/php@8.2/sbin:/opt/homebrew/opt/php@8.2/bin:/opt/homebrew/opt/openjdk@17/bin:/Users/kennywong/.composer/vendor/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/usr/local/share/dotnet:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/private/var/folders/w9/dgccp1_d2_s_v0wr6vl2ykxh0000gn/T/AppTranslocation/F8DF956E-26D5-4716-A877-7AA187753661/d/iTerm.app/Contents/Resources/utilities:/Users/kennywong/FlutterSDK/flutter/bin:/Users/kennywong/.pub-cache/bin:/Users/kennywong/.rvm/bin HOME=/Users/kennywong /Users/kennywong/FlutterSDK/flutter/bin/cache/dart-sdk/bin/dart --packages=/Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/package_config.json /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/objective_c/9f22e6a04e7d57ddc53af6565b2f38d4/hook.dill --config=/Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/objective_c/9f22e6a04e7d57ddc53af6565b2f38d4/input.json )`.
+INFO: 2026-03-07 12:46:45.050481: Running `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang --version`.
+
+INFO: 2026-03-07 12:46:45.062617: Running `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang --version`.
+
+INFO: 2026-03-07 12:46:45.077779: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -target arm64-apple-ios-simulator -mios-version-min=12 -c /Users/kennywong/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.c -fpic -I src -o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c.c.o
+
+art_api_dl.c.o
+
+INFO: 2026-03-07 12:46:45.077889: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -target arm64-apple-ios-simulator -mios-version-min=12 -x objective-c -fobjc-arc -c /Users/kennywong/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/input_stream_adapter.m -fpic -I src -o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/input_stream_adapter.m.o
+INFO: 2026-03-07 12:46:45.077970: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -target arm64-apple-ios-simulator -mios-version-min=12 -x objective-c -fobjc-arc -c /Users/kennywong/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.m -fpic -I src -o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c.m.o
+
+INFO: 2026-03-07 12:46:45.078326: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -target arm64-apple-ios-simulator -mios-version-min=12 -x objective-c -fobjc-arc -c /Users/kennywong/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/observer.m -fpic -I src -o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/observer.m.o
+
+INFO: 2026-03-07 12:46:45.078532: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -target arm64-apple-ios-simulator -mios-version-min=12 -x objective-c -fobjc-arc -c /Users/kennywong/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/ns_number.m -fpic -I src -o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/ns_number.m.o
+
+INFO: 2026-03-07 12:46:45.078636: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -target arm64-apple-ios-simulator -mios-version-min=12 -x objective-c -fobjc-arc -c /Users/kennywong/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/protocol.m -fpic -I src -o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/protocol.m.o
+
+INFO: 2026-03-07 12:46:45.078713: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -target arm64-apple-ios-simulator -mios-version-min=12 -x objective-c -fobjc-arc -c /Users/kennywong/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c_bindings_generated.m -fpic -I src -o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c_bindings_generated.m.o
+
+INFO: 2026-03-07 12:46:45.130536: 
+INFO: 2026-03-07 12:46:45.130587: 
+INFO: 2026-03-07 12:46:45.130613: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c.c.o
+INFO: 2026-03-07 12:46:45.132341: 
+INFO: 2026-03-07 12:46:45.132358: 
+INFO: 2026-03-07 12:46:45.132366: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/include/dart_api_dl.c.o
+
+INFO: 2026-03-07 12:46:45.140576: 
+INFO: 2026-03-07 12:46:45.140604: 
+INFO: 2026-03-07 12:46:45.140612: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/observer.m.o
+
+INFO: 2026-03-07 12:46:45.147540: 
+INFO: 2026-03-07 12:46:45.147565: 
+INFO: 2026-03-07 12:46:45.147572: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/protocol.m.o
+
+INFO: 2026-03-07 12:46:45.212593: 
+INFO: 2026-03-07 12:46:45.212641: 
+INFO: 2026-03-07 12:46:45.212657: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/ns_number.m.o
+
+INFO: 2026-03-07 12:46:45.216161: 
+INFO: 2026-03-07 12:46:45.216209: 
+INFO: 2026-03-07 12:46:45.216225: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/input_stream_adapter.m.o
+
+INFO: 2026-03-07 12:46:45.223048: 
+INFO: 2026-03-07 12:46:45.223074: 
+INFO: 2026-03-07 12:46:45.223082: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c.m.o
+
+INFO: 2026-03-07 12:46:45.236241: 
+INFO: 2026-03-07 12:46:45.236267: 
+INFO: 2026-03-07 12:46:45.236275: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c_bindings_generated.m.o
+
+INFO: 2026-03-07 12:46:45.236529: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -shared -Wl,-encryptable -undefined dynamic_lookup -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -target arm64-apple-ios-simulator -mios-version-min=12 /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/include/dart_api_dl.c.o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c.c.o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/input_stream_adapter.m.o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c.m.o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/observer.m.o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/ns_number.m.o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/protocol.m.o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/obj/src/objective_c_bindings_generated.m.o -o /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/objective_c.dylib
+
+INFO: 2026-03-07 12:46:45.269437: 
+INFO: 2026-03-07 12:46:45.269484: ld: warning: -undefined dynamic_lookup is deprecated on iOS-simulator
+
+INFO: 2026-03-07 12:46:45.269494: Generated /Users/kennywong/Sites/localhost/comp2003hk-2526-group-group3/.dart_tool/hooks_runner/shared/objective_c/build/9f22e6a04e/objective_c.dylib
+
