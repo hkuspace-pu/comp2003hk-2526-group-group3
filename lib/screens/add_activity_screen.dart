@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
+import '../services/firestore_service.dart';
 
 class AddActivityScreen extends StatefulWidget {
   const AddActivityScreen({Key? key}) : super(key: key);
@@ -11,11 +13,12 @@ class AddActivityScreen extends StatefulWidget {
 }
 
 class _AddActivityScreenState extends State<AddActivityScreen> {
+  final FirestoreService _firestoreService = FirestoreService();
   String _selectedActivity = AppConstants.activityTypes[0];
   String _selectedMood = AppConstants.moods[0];
-  final TextEditingController _durationController =
-      TextEditingController(text: '30');
+  final TextEditingController _durationController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -24,16 +27,53 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
     super.dispose();
   }
 
+  Future<void> _saveActivity() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final duration = int.tryParse(_durationController.text);
+    if (duration == null || duration <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid duration')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    await _firestoreService.saveActivityLog(
+      uid: user.uid,
+      activityType: _selectedActivity,
+      durationMinutes: duration,
+      mood: _selectedMood,
+      notes: _notesController.text.trim(),
+    );
+
+    final points = (duration * 1.5).round();
+
+    if (mounted) {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Activity saved! +$points points 🎉')),
+      );
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Activity'),
+        title: const Text('Log Activity'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: GradientBackground(
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -46,36 +86,28 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: AppColors.cardBackground,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedActivity,
-                      isExpanded: true,
-                      dropdownColor: AppColors.primaryDarkGrey,
-                      style: const TextStyle(
-                        color: AppColors.textWhite,
-                        fontSize: 16,
-                      ),
-                      icon: const Icon(Icons.arrow_drop_down,
-                          color: AppColors.textWhite),
-                      items: AppConstants.activityTypes.map((activity) {
-                        return DropdownMenuItem(
-                          value: activity,
-                          child: Text(activity),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedActivity = value!;
-                        });
-                      },
-                    ),
+                  child: DropdownButton<String>(
+                    value: _selectedActivity,
+                    isExpanded: true,
+                    dropdownColor: AppColors.cardBackground,
+                    underline: const SizedBox.shrink(),
+                    style: const TextStyle(color: AppColors.textWhite),
+                    items: AppConstants.activityTypes.map((activity) {
+                      return DropdownMenuItem(
+                        value: activity,
+                        child: Text(activity),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedActivity = value!);
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -89,7 +121,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
@@ -102,7 +134,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     style: const TextStyle(color: AppColors.textWhite),
                     decoration: const InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Enter duration',
+                      hintText: 'e.g. 30',
                       hintStyle: TextStyle(color: AppColors.textGrey),
                     ),
                   ),
@@ -118,72 +150,64 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: AppConstants.moods.map((mood) {
-                    return _buildMoodButton(mood);
+                    final isSelected = _selectedMood == mood;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedMood = mood),
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.accentOrange
+                              : AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.accentOrange
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            mood,
+                            style: const TextStyle(fontSize: 28),
+                          ),
+                        ),
+                      ),
+                    );
                   }).toList(),
                 ),
                 const SizedBox(height: 24),
 
                 // Notes
                 const Text(
-                  'Notes (Optional)',
+                  'Notes (optional)',
                   style: TextStyle(
                     color: AppColors.textWhite,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: AppColors.cardBackground,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TextField(
                     controller: _notesController,
-                    maxLines: 4,
+                    maxLines: 3,
                     style: const TextStyle(color: AppColors.textWhite),
                     decoration: const InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Great run today!',
+                      hintText: 'How did it go?',
                       hintStyle: TextStyle(color: AppColors.textGrey),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Add Photo
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBackground,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.textGrey, width: 2),
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Photo upload coming soon')),
-                      );
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.camera_alt, color: AppColors.textGrey),
-                        SizedBox(width: 12),
-                        Text(
-                          '📷 Add Photo (Optional)',
-                          style: TextStyle(
-                            color: AppColors.textGrey,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ),
@@ -194,67 +218,26 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () {
-                      final duration =
-                          int.tryParse(_durationController.text) ?? 30;
-                      final points =
-                          duration * 1; // 1 point per minute for activities
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text('Activity saved! +$points points!')),
-                      );
-
-                      Navigator.pop(context);
-                    },
+                    onPressed: _isSaving ? null : _saveActivity,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryDarkGrey,
+                      backgroundColor: AppColors.accentOrange,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'SAVE ACTIVITY',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isSaving
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'SAVE ACTIVITY',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMoodButton(String mood) {
-    final isSelected = _selectedMood == mood;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedMood = mood;
-        });
-      },
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.accentOrange.withOpacity(0.3)
-              : AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.accentOrange : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            mood,
-            style: const TextStyle(fontSize: 32),
           ),
         ),
       ),

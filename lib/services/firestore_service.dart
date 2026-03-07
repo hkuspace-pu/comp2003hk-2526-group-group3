@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_profile.dart';
 import '../models/focus_session.dart';
+import '../models/activity_log.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -185,5 +186,52 @@ class FirestoreService {
     if (points < 23000) return 8;
     if (points < 30000) return 9;
     return 10;
+  }
+  // ─── Activity Logs ───────────────────────────────────────────
+
+  Future<void> saveActivityLog({
+    required String uid,
+    required String activityType,
+    required int durationMinutes,
+    required String mood,
+    required String notes,
+  }) async {
+    final points = (durationMinutes * 1.5).round();
+
+    await _db.collection('users').doc(uid).collection('activities').add({
+      'uid': uid,
+      'activityType': activityType,
+      'durationMinutes': durationMinutes,
+      'mood': mood,
+      'notes': notes,
+      'pointsEarned': points,
+      'loggedAt': DateTime.now(),
+    });
+
+    final userDoc = await _db.collection('users').doc(uid).get();
+    final data = userDoc.data()!;
+    final currentPoints = data['totalPoints'] ?? 0;
+    final currentActivities = data['activityCount'] ?? 0;
+    final newPoints = currentPoints + points;
+    final newLevel = _calculateLevel(newPoints);
+
+    await _db.collection('users').doc(uid).update({
+      'totalPoints': newPoints,
+      'activityCount': currentActivities + 1,
+      'level': newLevel,
+    });
+  }
+
+  Future<List<ActivityLog>> getActivityLogs(String uid) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('activities')
+        .orderBy('loggedAt', descending: true)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => ActivityLog.fromFirestore(doc.data(), doc.id))
+        .toList();
   }
 }
