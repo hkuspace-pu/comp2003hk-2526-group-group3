@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/focus_session.dart';
+import '../models/activity_log.dart';
+import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 
@@ -10,23 +14,102 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  int _selectedDay = 25;
+  final FirestoreService _firestoreService = FirestoreService();
+  DateTime _currentMonth = DateTime.now();
+  int _selectedDay = DateTime.now().day;
+  bool _isLoading = true;
 
-  // Fake data for demonstration
-  final Map<int, String> _dayStatus = {
-    1: 'complete',
-    2: 'complete',
-    3: 'partial',
-    5: 'complete',
-    8: 'complete',
-    10: 'partial',
-    12: 'complete',
-    15: 'complete',
-    18: 'partial',
-    20: 'complete',
-    22: 'complete',
-    25: 'complete',
-  };
+  List<FocusSession> _sessions = [];
+  List<ActivityLog> _activities = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isLoading = true);
+
+    final start = DateTime(_currentMonth.year, _currentMonth.month, 1);
+    final end =
+        DateTime(_currentMonth.year, _currentMonth.month + 1, 0, 23, 59, 59);
+
+    final sessions =
+        await _firestoreService.getSessionsForDateRange(user.uid, start, end);
+    final activities = await _firestoreService.getActivityLogs(user.uid);
+
+    if (mounted) {
+      setState(() {
+        _sessions = sessions;
+        _activities = activities
+            .where((a) => a.loggedAt.isAfter(start) && a.loggedAt.isBefore(end))
+            .toList();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Get days that have sessions
+  Set<int> get _sessionDays => _sessions.map((s) => s.startTime.day).toSet();
+
+  // Get days that have activities
+  Set<int> get _activityDays => _activities.map((a) => a.loggedAt.day).toSet();
+
+  // Get sessions for selected day
+  List<FocusSession> get _selectedDaySessions =>
+      _sessions.where((s) => s.startTime.day == _selectedDay).toList();
+
+  // Get activities for selected day
+  List<ActivityLog> get _selectedDayActivities =>
+      _activities.where((a) => a.loggedAt.day == _selectedDay).toList();
+
+  int get _selectedDayPoints =>
+      _selectedDaySessions.fold(0, (sum, s) => sum + s.pointsEarned) +
+      _selectedDayActivities.fold(0, (sum, a) => sum + a.pointsEarned);
+
+  int get _selectedDayFocusMinutes =>
+      _selectedDaySessions.fold(0, (sum, s) => sum + s.durationMinutes);
+
+  int get _selectedDayActivityMinutes =>
+      _selectedDayActivities.fold(0, (sum, a) => sum + a.durationMinutes);
+
+  String get _monthTitle {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return '${months[_currentMonth.month - 1]} ${_currentMonth.year}';
+  }
+
+  void _previousMonth() {
+    setState(() {
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+      _selectedDay = 1;
+    });
+    _loadData();
+  }
+
+  void _nextMonth() {
+    setState(() {
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+      _selectedDay = 1;
+    });
+    _loadData();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,16 +123,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                // Month Header
-                const Text(
-                  'December 2025',
-                  style: TextStyle(
-                    color: AppColors.textWhite,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                // Month Header with navigation
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left,
+                          color: AppColors.textWhite),
+                      onPressed: _previousMonth,
+                    ),
+                    Text(
+                      _monthTitle,
+                      style: const TextStyle(
+                        color: AppColors.textWhite,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right,
+                          color: AppColors.textWhite),
+                      onPressed: _nextMonth,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 // Calendar
                 Container(
@@ -58,39 +156,46 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     color: AppColors.cardBackground,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Column(
-                    children: [
-                      // Weekday headers
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: const [
-                          _WeekdayHeader('Su'),
-                          _WeekdayHeader('Mo'),
-                          _WeekdayHeader('Tu'),
-                          _WeekdayHeader('We'),
-                          _WeekdayHeader('Th'),
-                          _WeekdayHeader('Fr'),
-                          _WeekdayHeader('Sa'),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.accentOrange,
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            // Weekday headers
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _WeekdayHeader('Su'),
+                                _WeekdayHeader('Mo'),
+                                _WeekdayHeader('Tu'),
+                                _WeekdayHeader('We'),
+                                _WeekdayHeader('Th'),
+                                _WeekdayHeader('Fr'),
+                                _WeekdayHeader('Sa'),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
 
-                      // Calendar days
-                      _buildCalendarGrid(),
+                            // Calendar days
+                            _buildCalendarGrid(),
 
-                      const SizedBox(height: 16),
+                            const SizedBox(height: 16),
 
-                      // Legend
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildLegend(Colors.green, 'Completed'),
-                          _buildLegend(Colors.yellow[700]!, 'Partial'),
-                          _buildLegend(AppColors.textGrey, 'Incomplete'),
-                        ],
-                      ),
-                    ],
-                  ),
+                            // Legend
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildLegend(Colors.green, 'Focus'),
+                                _buildLegend(
+                                    AppColors.accentOrange, 'Activity'),
+                                _buildLegend(Colors.blue, 'Both'),
+                              ],
+                            ),
+                          ],
+                        ),
                 ),
                 const SizedBox(height: 24),
 
@@ -106,7 +211,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Selected: Dec $_selectedDay, 2025',
+                        '$_monthTitle $_selectedDay',
                         style: const TextStyle(
                           color: AppColors.textWhite,
                           fontSize: 18,
@@ -114,11 +219,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildDetailRow('Focus:', '2 sessions (90 min)'),
-                      const SizedBox(height: 8),
-                      _buildDetailRow('Activities:', '3 (120 min)'),
-                      const SizedBox(height: 8),
-                      _buildDetailRow('Points Earned:', '240 💰'),
+                      if (_selectedDaySessions.isEmpty &&
+                          _selectedDayActivities.isEmpty)
+                        const Text(
+                          'No activity on this day',
+                          style: TextStyle(color: AppColors.textGrey),
+                        )
+                      else ...[
+                        if (_selectedDaySessions.isNotEmpty)
+                          _buildDetailRow(
+                            'Focus:',
+                            '${_selectedDaySessions.length} sessions ($_selectedDayFocusMinutes min)',
+                          ),
+                        if (_selectedDayActivities.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _buildDetailRow(
+                            'Activities:',
+                            '${_selectedDayActivities.length} ($_selectedDayActivityMinutes min)',
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        _buildDetailRow(
+                          'Points Earned:',
+                          '$_selectedDayPoints 💰',
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -131,19 +256,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildCalendarGrid() {
-    // December 2025 starts on Monday (day 1)
-    final daysInMonth = 31;
-    final startWeekday = 1; // Monday = 1
+    final daysInMonth =
+        DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
+    final firstWeekday =
+        DateTime(_currentMonth.year, _currentMonth.month, 1).weekday % 7;
 
     List<Widget> rows = [];
     List<Widget> currentRow = [];
 
-    // Add empty cells for days before month starts
-    for (int i = 0; i < startWeekday; i++) {
+    // Empty cells before month starts
+    for (int i = 0; i < firstWeekday; i++) {
       currentRow.add(_buildDayCell(0, false));
     }
 
-    // Add days of month
+    // Days of month
     for (int day = 1; day <= daysInMonth; day++) {
       currentRow.add(_buildDayCell(day, true));
 
@@ -157,7 +283,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
     }
 
-    // Add remaining cells
+    // Fill remaining cells
     while (currentRow.length < 7 && currentRow.isNotEmpty) {
       currentRow.add(_buildDayCell(0, false));
     }
@@ -174,31 +300,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildDayCell(int day, bool isActive) {
     if (!isActive) {
-      return SizedBox(
-        width: 40,
-        height: 40,
-        child: Container(),
-      );
+      return const SizedBox(width: 40, height: 40);
     }
 
-    final status = _dayStatus[day];
+    final hasSession = _sessionDays.contains(day);
+    final hasActivity = _activityDays.contains(day);
     final isSelected = day == _selectedDay;
+    final isToday = day == DateTime.now().day &&
+        _currentMonth.month == DateTime.now().month &&
+        _currentMonth.year == DateTime.now().year;
 
     Color backgroundColor;
-    if (status == 'complete') {
+    if (hasSession && hasActivity) {
+      backgroundColor = Colors.blue;
+    } else if (hasSession) {
       backgroundColor = Colors.green;
-    } else if (status == 'partial') {
-      backgroundColor = Colors.yellow[700]!;
+    } else if (hasActivity) {
+      backgroundColor = AppColors.accentOrange;
     } else {
-      backgroundColor = AppColors.textGrey.withOpacity(0.3);
+      backgroundColor = AppColors.primaryDarkGrey.withValues(alpha: 0.3);
     }
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedDay = day;
-        });
-      },
+      onTap: () => setState(() => _selectedDay = day),
       child: Container(
         width: 40,
         height: 40,
@@ -208,14 +332,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
           borderRadius: BorderRadius.circular(8),
           border: isSelected
               ? Border.all(color: AppColors.textWhite, width: 2)
-              : null,
+              : isToday
+                  ? Border.all(color: AppColors.accentOrange, width: 2)
+                  : null,
         ),
         child: Center(
           child: Text(
             '$day',
             style: TextStyle(
-              color: status != null ? Colors.white : AppColors.textGrey,
+              color: (hasSession || hasActivity)
+                  ? Colors.white
+                  : AppColors.textGrey,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 13,
             ),
           ),
         ),
@@ -235,13 +364,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 12,
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
       ],
     );
   }
@@ -250,21 +374,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 16,
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.textWhite,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 16)),
+        Text(value,
+            style: const TextStyle(
+                color: AppColors.textWhite,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -272,7 +388,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class _WeekdayHeader extends StatelessWidget {
   final String day;
-
   const _WeekdayHeader(this.day);
 
   @override
