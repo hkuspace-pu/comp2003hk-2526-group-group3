@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/user_profile.dart';
+import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
@@ -9,60 +12,64 @@ class StoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Aquarium Shop'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                '💰 ${AppConstants.defaultPoints}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.accentOrange,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: GradientBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    // Fishes Section
-                    _buildSectionTitle('🐠 Fish'),
-                    const SizedBox(height: 12),
-                    _buildStoreItem(context, 'clownfish'),
-                    _buildStoreItem(context, 'goldfish'),
-                    _buildStoreItem(context, 'shrimp'),
-                    _buildStoreItem(context, 'pufferfish'),
-                    const SizedBox(height: 24),
+    final user = FirebaseAuth.instance.currentUser;
+    final firestoreService = FirestoreService();
 
-                    // Food Section
-                    _buildSectionTitle('🍖 Food'),
-                    const SizedBox(height: 12),
-                    _buildStoreItem(context, 'food'),
-                    const SizedBox(height: 24),
+    return StreamBuilder<UserProfile?>(
+      stream: firestoreService.getUserProfileStream(user!.uid),
+      builder: (context, snapshot) {
+        final totalPoints = snapshot.data?.totalPoints ?? 0;
 
-                    // Decorations Section
-                    _buildSectionTitle('🌿 Decorations'),
-                    const SizedBox(height: 12),
-                    _buildStoreItem(context, 'seaweed'),
-                    _buildStoreItem(context, 'coral'),
-                  ],
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Aquarium Shop'),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: Text(
+                    '💰 $totalPoints',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accentOrange,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
+          body: GradientBackground(
+            child: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  // Fishes Section
+                  _buildSectionTitle('🐠 Fish'),
+                  const SizedBox(height: 12),
+                  _buildStoreItem(context, 'clownfish'),
+                  _buildStoreItem(context, 'goldfish'),
+                  _buildStoreItem(context, 'shrimp'),
+                  _buildStoreItem(context, 'pufferfish'),
+                  const SizedBox(height: 24),
+
+                  // Food Section
+                  _buildSectionTitle('🍖 Food'),
+                  const SizedBox(height: 12),
+                  _buildStoreItem(context, 'food'),
+                  const SizedBox(height: 24),
+
+                  // Decorations Section
+                  _buildSectionTitle('🌿 Decorations'),
+                  const SizedBox(height: 12),
+                  _buildStoreItem(context, 'seaweed'),
+                  _buildStoreItem(context, 'coral'),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -90,10 +97,7 @@ class StoreScreen extends StatelessWidget {
       child: Row(
         children: [
           // Icon
-          Text(
-            item['icon'],
-            style: const TextStyle(fontSize: 40),
-          ),
+          Text(item['icon'], style: const TextStyle(fontSize: 40)),
           const SizedBox(width: 16),
 
           // Name
