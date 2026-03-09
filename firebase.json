@@ -1,0 +1,25 @@
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "aquariumapp-707aa",
+                    "appId": "1:687897477415:android:09842ff013b37acc4b6902",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "aquariumapp-707aa",
+                    "configurations": {
+                        "android": "1:687897477415:android:09842ff013b37acc4b6902",
+                        "ios": "1:687897477415:ios:3a74811a733ee5c34b6902",
+                        "macos": "1:687897477415:ios:3a74811a733ee5c34b6902",
+                        "web": "1:687897477415:web:18d575142a0fa64a4b6902",
+                        "windows": "1:687897477415:web:7e9e9034ddaa83a74b6902"
+                    }
+                }
+            }
+        }
+    }
+}

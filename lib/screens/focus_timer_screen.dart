@@ -3,6 +3,9 @@ import 'dart:async';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 import 'focus_complete_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firestore_service.dart';
+import '../models/focus_session.dart';
 
 class FocusTimerScreen extends StatefulWidget {
   final int duration;
@@ -18,12 +21,14 @@ class FocusTimerScreen extends StatefulWidget {
 
 class _FocusTimerScreenState extends State<FocusTimerScreen> {
   late int _remainingSeconds;
+  late DateTime _startTime;
   Timer? _timer;
   bool _isPaused = false;
 
   @override
   void initState() {
     super.initState();
+    _startTime = DateTime.now();
     _remainingSeconds = widget.duration * 60;
     _startTimer();
   }
@@ -61,13 +66,41 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
     });
   }
 
-  void _onComplete() {
+  Future<void> _saveFocusSession() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final endTime = DateTime.now();
+
+    final session = FocusSession(
+      startTime: _startTime,
+      endTime: endTime,
+      duration: widget.duration,
+      pointsEarned: widget.duration,
+    );
+
+    await FirestoreService().addFocusSession(uid, session);
+  }
+
+  void _onComplete() async {
+    try {
+      await _saveFocusSession();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Focus session Saved')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Focus session failed to save: $e')),
+      );
+    }
+
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => FocusCompleteScreen(
-          duration: widget.duration,
-        ),
+        builder: (context) => FocusCompleteScreen(duration: widget.duration),
       ),
     );
   }
