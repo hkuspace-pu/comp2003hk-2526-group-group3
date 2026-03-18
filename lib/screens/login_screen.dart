@@ -3,6 +3,9 @@ import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
 import 'dashboard_screen.dart';
+import 'PhoneRegister.dart';
+import 'EmailVerificationScreen.dart';
+import 'MFAVerifyScreen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,47 +33,41 @@ class _LoginScreenState extends State<LoginScreen> {
       _loading = true;
       _error = null;
     });
+
     try {
       final email = _emailCtrl.text.trim();
       final password = _pwdCtrl.text;
-
-      if (email.isEmpty || password.isEmpty) {
-        throw FirebaseAuthException(
-            code: 'empty-fields', message: 'Please Enter Email and Password');
-      }
 
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // （可選）讀取 claims 做導流（強制改密碼 / admin 入口等）
-      // final token = await FirebaseAuth.instance.currentUser!.getIdTokenResult(true);
-      // final claims = token.claims ?? {};
-      // if (claims['mustResetPassword'] == true) {
-      //   Navigator.of(context).pushReplacement(
-      //     MaterialPageRoute(builder: (_) => const ForceChangePasswordPage()),
-      //   );
-      //   return;
-      // }
+      await FirebaseAuth.instance.currentUser?.reload();
+      final user = FirebaseAuth.instance.currentUser;
 
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      if (!user!.emailVerified) {
+        await user.sendEmailVerification();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const EmailVerificationScreen()),
+        );
+        return;
+      }
+
+      final factors = await user.multiFactor.getEnrolledFactors();
+      if (factors.isEmpty) {
+        Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const PhoneRegister()));
+      } else {
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (_) => const DashboardScreen()));
+      }
+    } on FirebaseAuthMultiFactorException catch (e) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => MFAVerifyScreen(exception: e)),
       );
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _error = _prettyError(e);
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Login failed: ${e.toString()}';
-      });
-    } finally {
-      if (mounted)
-        setState(() {
-          _loading = false;
-        });
     }
   }
 
@@ -229,48 +226,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  // Widget _buildButton(
-  //   BuildContext context, {
-  //   required String text,
-  //   required VoidCallback onPressed,
-  //   IconData? icon,
-  //   bool isOutlined = false,
-  // }) {
-  //   return SizedBox(
-  //     width: double.infinity,
-  //     height: 56,
-  //     child: ElevatedButton(
-  //       onPressed: onPressed,
-  //       style: ElevatedButton.styleFrom(
-  //         backgroundColor:
-  //             isOutlined ? Colors.transparent : AppColors.primaryDarkGrey,
-  //         foregroundColor: AppColors.textWhite,
-  //         shape: RoundedRectangleBorder(
-  //           borderRadius: BorderRadius.circular(12),
-  //           side: isOutlined
-  //               ? const BorderSide(color: AppColors.textWhite, width: 2)
-  //               : BorderSide.none,
-  //         ),
-  //         elevation: isOutlined ? 0 : 4,
-  //       ),
-  //       child: Row(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: [
-  //           if (icon != null) ...[
-  //             Icon(icon),
-  //             const SizedBox(width: 8),
-  //           ],
-  //           Text(
-  //             text,
-  //             style: const TextStyle(
-  //               fontSize: 16,
-  //               fontWeight: FontWeight.bold,
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 }
