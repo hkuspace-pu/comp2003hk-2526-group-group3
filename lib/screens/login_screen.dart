@@ -3,14 +3,14 @@ import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
 import 'dashboard_screen.dart';
-import 'PhoneRegister.dart';
-import 'EmailVerificationScreen.dart';
-import 'MFAVerifyScreen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import 'emailVerificationScreen.dart';
+import 'phoneRegister.dart';
+import 'mfaVerifyScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -38,15 +38,24 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailCtrl.text.trim();
       final password = _pwdCtrl.text;
 
+      if (email.isEmpty || password.isEmpty) {
+        throw FirebaseAuthException(
+          code: 'empty-fields',
+          message: 'Please Enter Email and Password',
+        );
+      }
+
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      if (!mounted) return;
+
       await FirebaseAuth.instance.currentUser?.reload();
       final user = FirebaseAuth.instance.currentUser;
 
-      if (!user!.emailVerified) {
+      if (user != null && !user.emailVerified) {
         await user.sendEmailVerification();
         Navigator.push(
           context,
@@ -55,19 +64,41 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final factors = await user.multiFactor.getEnrolledFactors();
+      final factors = await user!.multiFactor.getEnrolledFactors();
+
       if (factors.isEmpty) {
         Navigator.push(
-            context, MaterialPageRoute(builder: (_) => const PhoneRegister()));
+          context,
+          MaterialPageRoute(builder: (_) => const PhoneRegister()),
+        );
+        return;
       } else {
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => const DashboardScreen()));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
       }
     } on FirebaseAuthMultiFactorException catch (e) {
+      if (!mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => MFAVerifyScreen(exception: e)),
+        MaterialPageRoute(builder: (_) => mfaVerifyScreen(exception: e)),
       );
+      return;
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _error = _prettyError(e);
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Login failed: ${e.toString()}';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -134,7 +165,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 48),
-
                 // Email
                 _buildTextField(
                   controller: _emailCtrl,
@@ -143,7 +173,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 16),
-
                 // Password
                 _buildTextField(
                   controller: _pwdCtrl,
@@ -152,14 +181,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   isPassword: true,
                 ),
                 const SizedBox(height: 16),
-
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(_error!,
-                        style: const TextStyle(color: Colors.red)),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ),
-
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -178,17 +207,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 22,
                             height: 22,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('LOGIN',
+                        : const Text(
+                            'LOGIN',
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
-
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: _loading ? null : _sendResetEmail,
-                  child: const Text('Forgot Password?',
-                      style: TextStyle(color: AppColors.textGrey)),
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(color: AppColors.textGrey),
+                  ),
                 ),
                 const SizedBox(height: 24),
               ],
