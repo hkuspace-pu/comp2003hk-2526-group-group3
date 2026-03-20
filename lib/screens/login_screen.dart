@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => mfaVerifyScreen(exception: e)),
+        MaterialPageRoute(builder: (_) => MFAVerifyScreen(exception: e)),
       );
       return;
     } on FirebaseAuthException catch (e) {

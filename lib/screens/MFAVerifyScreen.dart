@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 
-// --- Web 端需要的 reCAPTCHA 類別（來自 firebase_auth_web） ---
 import 'package:firebase_auth_web/firebase_auth_web.dart'
     show
         FirebaseAuthWeb,
@@ -10,19 +9,15 @@ import 'package:firebase_auth_web/firebase_auth_web.dart'
         RecaptchaVerifierSize,
         RecaptchaVerifierTheme;
 
-// 你的專案既有樣式／工具
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
 import 'dashboard_screen.dart';
 
-/// 支援兩種流程：
-/// 1) 登入補第二因素（sign-in flow）：enrollFlow=false，exception 必填。
-/// 2) 首次註冊第二因素（enroll flow）：enrollFlow=true，phoneNumberForEnroll 建議提供。
 class MFAVerifyScreen extends StatefulWidget {
-  final bool enrollFlow; // true=註冊第二因素；false=登入補第二因素
-  final FirebaseAuthMultiFactorException? exception; // sign-in flow 需要
-  final String? phoneNumberForEnroll; // enroll flow 建議提供；若為 null，畫面會顯示輸入框
+  final bool enrollFlow;
+  final FirebaseAuthMultiFactorException? exception;
+  final String? phoneNumberForEnroll;
 
   const MFAVerifyScreen({
     super.key,
@@ -36,7 +31,6 @@ class MFAVerifyScreen extends StatefulWidget {
 }
 
 class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
-  // 驗證碼與電話欄位
   final TextEditingController _codeCtrl = TextEditingController();
   final TextEditingController _phoneCtrl = TextEditingController();
 
@@ -46,19 +40,16 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
   bool _verifying = false;
   String? _error;
 
-  // --- Web reCAPTCHA verifier ---
   RecaptchaVerifier? _webVerifier;
 
   @override
   void initState() {
     super.initState();
 
-    // enroll flow 若有預設電話，帶到輸入框
     if (widget.enrollFlow && widget.phoneNumberForEnroll != null) {
       _phoneCtrl.text = widget.phoneNumberForEnroll!;
     }
 
-    // 頁面載入即送一次驗證碼（若為 enroll flow 但沒有電話，就先不送）
     if (!(widget.enrollFlow &&
         (widget.phoneNumberForEnroll?.isEmpty ?? true))) {
       _sendSMS();
@@ -80,24 +71,19 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
     return '$prefix****$suffix';
   }
 
-  // --- Web：每次送碼前建立並 render reCAPTCHA，避免殘留衝突 ---
   Future<void> _prepareWebRecaptcha() async {
     try {
-      _webVerifier?.clear(); // clear() 回傳 void，不要 await
+      _webVerifier?.clear();
     } catch (_) {}
     _webVerifier = null;
 
     _webVerifier = RecaptchaVerifier(
       auth: FirebaseAuthWeb.instance,
-      container:
-          'recaptcha-container', // 請在 web/index.html 放置 <div id="recaptcha-container"></div>
-      size:
-          RecaptchaVerifierSize.compact, // 常見可用: normal/compact（無 invisible 常數）
+      container: 'recaptcha-container',
+      size: RecaptchaVerifierSize.compact,
       theme: RecaptchaVerifierTheme.dark,
     );
 
-    // 先行 render；verifyPhoneNumber 會自動拾取已 render 的 v2 reCAPTCHA
-    // ignore: unused_result
     await _webVerifier!.render();
   }
 
@@ -113,7 +99,6 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
       }
 
       if (widget.enrollFlow) {
-        // ========= 註冊第二因素（enroll） =========
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
           setState(() => _error = 'No signed-in user for MFA enrollment.');
@@ -125,15 +110,13 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
             : (widget.phoneNumberForEnroll ?? '').trim();
 
         if (phone.isEmpty) {
-          setState(() => _error = '請先輸入要註冊的手機號碼（含國碼，例如 +852xxxxxxxx）。');
+          setState(() => _error = 'Please enter a phone number to enroll MFA.');
           return;
         }
 
         _maskedPhone = _maskPhone(phone);
 
-        // enroll 需要 user.multiFactor.getSession()
-        final session =
-            await user.multiFactor.getSession(); // enroll 流程的 session
+        final session = await user.multiFactor.getSession();
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
           multiFactorSession: session,
@@ -144,7 +127,6 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
           codeAutoRetrievalTimeout: (_) {},
         );
       } else {
-        // ========= 登入補第二因素（sign-in） =========
         final ex = widget.exception;
         if (ex == null) {
           setState(
@@ -162,7 +144,7 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
 
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: hint.phoneNumber!,
-          multiFactorSession: resolver.session, // sign-in 流程的 session
+          multiFactorSession: resolver.session,
           verificationCompleted: (_) {},
           verificationFailed: (FirebaseAuthException e) =>
               setState(() => _error = '[${e.code}] ${e.message ?? ''}'),
@@ -193,15 +175,12 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
       final assertion = PhoneMultiFactorGenerator.getAssertion(credential);
 
       if (widget.enrollFlow) {
-        // ✅ 註冊第二因素完成（enroll）
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) throw FirebaseAuthException(code: 'no-current-user');
-        await user.multiFactor.enroll(assertion,
-            displayName: 'phone'); // 對應 mfaEnrollment:finalize
+        await user.multiFactor.enroll(assertion, displayName: 'phone');
       } else {
-        // ✅ 登入補第二因素完成（sign-in）
         final ex = widget.exception!;
-        await ex.resolver.resolveSignIn(assertion); // 對應 mfaSignIn:finalize
+        await ex.resolver.resolveSignIn(assertion);
       }
 
       if (!mounted) return;
@@ -252,17 +231,15 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
                 Text(
                   widget.enrollFlow
                       ? (_maskedPhone == null
-                          ? '輸入電話並發送驗證碼以註冊第二因素（SMS）。'
-                          : '我們已傳送驗證碼至 $_maskedPhone，請輸入以完成註冊。')
+                          ? 'Enter phone number and send verification code to enroll two-factor authentication (SMS).'
+                          : 'We have sent a verification code to $_maskedPhone, please enter it to complete registration.')
                       : (_maskedPhone == null
-                          ? '已向你的第二因素電話發送驗證碼。'
-                          : '我們已傳送驗證碼至 $_maskedPhone，請輸入以完成登入。'),
+                          ? 'A verification code has been sent to your second factor phone number.'
+                          : 'We have sent a verification code to $_maskedPhone, please enter it to complete login.'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: AppColors.textGrey),
                 ),
                 const SizedBox(height: 24),
-
-                // enroll flow 若未提供 phone，顯示電話輸入框
                 if (widget.enrollFlow &&
                     (widget.phoneNumberForEnroll?.isEmpty ?? true))
                   Padding(
@@ -270,20 +247,17 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
                     child: _buildTextField(
                       controller: _phoneCtrl,
                       icon: Icons.phone_android,
-                      hint: '電話（含國碼，例如 +852xxxxxxxx）',
+                      hint: 'Phone Number (+852XXXXXXXX)',
                       keyboardType: TextInputType.phone,
                     ),
                   ),
-
                 _buildTextField(
                   controller: _codeCtrl,
                   icon: Icons.pin,
                   hint: 'SMS Code',
                   keyboardType: TextInputType.number,
                 ),
-
                 const SizedBox(height: 12),
-
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -293,7 +267,6 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -320,9 +293,7 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
                           ),
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 TextButton(
                   onPressed: _sendingCode ? null : _sendSMS,
                   child: Text(
@@ -330,7 +301,6 @@ class _MFAVerifyScreenState extends State<MFAVerifyScreen> {
                     style: const TextStyle(color: AppColors.textGrey),
                   ),
                 ),
-
                 const SizedBox(height: 24),
               ],
             ),
