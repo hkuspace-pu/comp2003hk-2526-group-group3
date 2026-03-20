@@ -17,21 +17,25 @@ class AuthService {
     required String password,
     required String displayName,
   }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    // Create user profile in Firestore
-    if (credential.user != null) {
-      await _firestoreService.createUserProfile(
-        uid: credential.user!.uid,
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
-        displayName: displayName,
+        password: password,
       );
-    }
 
-    return credential;
+      if (credential.user != null) {
+        await _firestoreService.createUserProfile(
+          uid: credential.user!.uid,
+          email: email,
+          displayName: displayName,
+        );
+      }
+
+      return credential;
+    } catch (e) {
+      print('REGISTER ERROR: $e');
+      rethrow;
+    }
   }
 
   // Login with email and password
@@ -39,11 +43,16 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    return credential;
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return credential;
+    } catch (e) {
+      print('LOGIN ERROR: $e');
+      rethrow;
+    }
   }
 
   // Logout

@@ -26,11 +26,11 @@
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo</key>
 		<data>
-		ewlPBDOam8Kz2VGoMHo2zFLf6n0=
+		LxqciNMpYzlADr8I933YBYKMedQ=
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo</key>
 		<data>
-		M1/Rmw8gLpwSzDWnHlmNoEVtV30=
+		61l3W5WOOHAmdsH0ojs5RmHWWQI=
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/arm64-apple-ios-simulator.abi.json</key>
 		<data>
@@ -42,7 +42,7 @@
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/arm64-apple-ios-simulator.swiftmodule</key>
 		<data>
-		zyqL6s3x66WVIrgy0/4H0ke/E+Q=
+		ku1zSVS05xkEj5VghwDD0h9bgWU=
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/x86_64-apple-ios-simulator.abi.json</key>
 		<data>
@@ -54,7 +54,7 @@
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/x86_64-apple-ios-simulator.swiftmodule</key>
 		<data>
-		dQ8Wu4DOuDr3GNSi/ZTZCHUjuVc=
+		At8ROcQ8Lcb47Jaq62FhySPno14=
 		</data>
 		<key>Modules/module.modulemap</key>
 		<data>
@@ -95,14 +95,14 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			jyK1HbFYvriNkW9S4XC67cpa8mcBO1o+lETKE8wNvSw=
+			EJUR7L4LyCCsT/Xrny++bzOoay/C2KxVkqjjDWjWELE=
 			</data>
 		</dict>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			01O4KeL/8q/ggl2fFDEMuHL7OD9PiXGEpGCNe+LcS5k=
+			l5oSGdNOYpTR0dfeYVqQbHBxm4edcbUoiVhAe5unUMk=
 			</data>
 		</dict>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/arm64-apple-ios-simulator.abi.json</key>
@@ -123,7 +123,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			BnBcxXmOzPuuyMj+atyM2RuU4RIun8TQJKzud52Yz9s=
+			jaxlPlex2mgGLSS5a7YPKqcNIFt+nM3oZz9GNE4l9/Y=
 			</data>
 		</dict>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/x86_64-apple-ios-simulator.abi.json</key>
@@ -144,7 +144,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			lewBEo7qm+ZVxDzUDOmTqrFExRVOnUn1f1ffIoENZR0=
+			fq7GpYJiTxy+N5x3myVVjNkibTWo45QI2JT6eZtJoLw=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>

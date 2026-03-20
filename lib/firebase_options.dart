@@ -50,7 +50,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCzPEofrEKpx90cyTQaad_cl_WA0A3Plp4',
+    apiKey: 'AIzaSyCdX9ieBvIp-r_hmDRY28B35ki0gYLaw94',
     appId: '1:462764864604:android:a6bbec99cd8713d95ca299',
     messagingSenderId: '462764864604',
     projectId: 'focus-aquarium',
@@ -58,7 +58,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCdX9ieBvIp-r_hmDRY28B35ki0gYLaw94',
+    apiKey: 'AIzaSyBzZid9MMFCnxvVGVQh0yvmnnce76-nh2U',
     appId: '1:462764864604:ios:50af122604568c345ca299',
     messagingSenderId: '462764864604',
     projectId: 'focus-aquarium',
