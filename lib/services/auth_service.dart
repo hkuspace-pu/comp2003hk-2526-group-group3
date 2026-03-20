@@ -5,13 +5,10 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
 
-  // Get current user
   User? get currentUser => _auth.currentUser;
 
-  // Auth state stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Register with email and password
   Future<UserCredential?> register({
     required String email,
     required String password,
@@ -22,15 +19,14 @@ class AuthService {
         email: email,
         password: password,
       );
-
       if (credential.user != null) {
         await _firestoreService.createUserProfile(
           uid: credential.user!.uid,
           email: email,
           displayName: displayName,
         );
+        await credential.user!.sendEmailVerification();
       }
-
       return credential;
     } catch (e) {
       print('REGISTER ERROR: $e');
@@ -38,7 +34,6 @@ class AuthService {
     }
   }
 
-  // Login with email and password
   Future<UserCredential?> login({
     required String email,
     required String password,
@@ -48,6 +43,13 @@ class AuthService {
         email: email,
         password: password,
       );
+      if (credential.user != null && !credential.user!.emailVerified) {
+        await _auth.signOut();
+        throw FirebaseAuthException(
+          code: 'email-not-verified',
+          message: 'Please verify your email before logging in.',
+        );
+      }
       return credential;
     } catch (e) {
       print('LOGIN ERROR: $e');
@@ -55,7 +57,18 @@ class AuthService {
     }
   }
 
-  // Logout
+  Future<void> resendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  Future<bool> isEmailVerified() async {
+    await _auth.currentUser?.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
   Future<void> logout() async {
     await _auth.signOut();
   }

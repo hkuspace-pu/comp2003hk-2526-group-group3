@@ -3,6 +3,7 @@ import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import 'email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -41,6 +42,11 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          );
+        }
       } else {
         if (_displayNameController.text.trim().isEmpty) {
           setState(() {
@@ -54,12 +60,12 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _passwordController.text.trim(),
           displayName: _displayNameController.text.trim(),
         );
-      }
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
-        );
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+                builder: (context) => const EmailVerificationScreen()),
+          );
+        }
       }
     } on Exception catch (e) {
       setState(() {
@@ -83,6 +89,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (error.contains('invalid-email')) return 'Invalid email address';
     if (error.contains('invalid-credential'))
       return 'Incorrect email or password';
+    if (error.contains('email-not-verified'))
+      return 'Please verify your email before logging in.';
     return 'Something went wrong. Please try again.';
   }
 
