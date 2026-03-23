@@ -1,11 +1,11 @@
-// aquarium_screen.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
+import '../services/firestore_service.dart';
+import '../models/user_profile.dart';
 import 'store_screen.dart';
-
-// NEW imports:
 import '../screens/aquarium/animated_aquarium.dart';
 
 class AquariumScreen extends StatelessWidget {
@@ -13,158 +13,166 @@ class AquariumScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = AnimatedAquariumController(); // optional
+    final controller = AnimatedAquariumController();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final firestoreService = FirestoreService();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Focus Aquarium'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                '💰 ${AppConstants.defaultPoints}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.accentOrange,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: GradientBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Aquarium container (unchanged styling)
-                    Container(
-                      margin: const EdgeInsets.all(20),
-                      padding: const EdgeInsets.all(20),
-                      height: 400,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0077BE).withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: AppColors.textWhite.withOpacity(0.3),
-                          width: 2,
-                        ),
-                      ),
-                      // Replace inner content with animated aquarium
-                      child: AnimatedAquarium(
-                        controller: controller, // optional
-                        fishCount: AppConstants.fishCount,
-                        fishEmojiTypes: const ['🐠', '🐟', '🦐'], // your emojis
-                        overlayChild: Stack(
-                          children: const [
-                            Positioned.fill(
-                              child: IgnorePointer(
-                                child: Center(
-                                  child: Text(
-                                    '~~~~ Water Surface ~~~~',
-                                    style: TextStyle(
-                                      color: AppColors.textGrey,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Decorations: plant, rock, coral
-                            Positioned(
-                                left: 16,
-                                bottom: 26,
-                                child:
-                                    Text('🌿', style: TextStyle(fontSize: 36))),
-                            Positioned(
-                                left: 72,
-                                bottom: 28,
-                                child:
-                                    Text('🪨', style: TextStyle(fontSize: 28))),
-                            Positioned(
-                                right: 24,
-                                bottom: 32,
-                                child:
-                                    Text('🪸', style: TextStyle(fontSize: 34))),
-                          ],
-                        ),
-                      ),
-                    ),
+    return StreamBuilder<UserProfile?>(
+      stream: firestoreService.getUserProfileStream(uid),
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        final points = profile?.totalPoints ?? 0;
+        final fishCount = profile?.ownedFish.length ?? 0;
+        final foodStock = profile?.foodStock ?? 0;
+        final fishEmojis = profile?.ownedFish
+                .map((f) =>
+                    AppConstants.storeItems[f]?['icon'] as String? ?? '🐟')
+                .toList() ??
+            ['🐟'];
 
-                    // Stats (unchanged)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardBackground,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStat('💰', 'Points',
-                                '${AppConstants.defaultPoints}'),
-                            _buildStat(
-                                '🐟', 'Fishes', '${AppConstants.fishCount}/10'),
-                            _buildStat(
-                                '🍖', 'Food', '${AppConstants.foodStock}'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Bottom buttons (unchanged, with optional controller usage)
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Focus Aquarium'),
+            actions: [
               Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildButton(
-                        context,
-                        label: 'FEED',
-                        icon: Icons.restaurant,
-                        onPressed: () {
-                          controller.burstBubbles(); // trigger canvas burst
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Fed fish! 🐟'),
-                                duration: Duration(seconds: 2)),
-                          );
-                        },
-                      ),
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: Text(
+                    '💰 $points',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accentOrange,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildButton(
-                        context,
-                        label: 'STORE',
-                        icon: Icons.shopping_cart,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const StoreScreen()),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
+          body: GradientBackground(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(20),
+                          height: 400,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0077BE).withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: AppColors.textWhite.withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: AnimatedAquarium(
+                            controller: controller,
+                            fishCount: fishCount > 0 ? fishCount : 1,
+                            fishEmojiTypes:
+                                fishEmojis.isNotEmpty ? fishEmojis : ['🐟'],
+                            overlayChild: Stack(
+                              children: const [
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: Center(
+                                      child: Text(
+                                        '~~~~ Water Surface ~~~~',
+                                        style: TextStyle(
+                                          color: AppColors.textGrey,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                    left: 16,
+                                    bottom: 26,
+                                    child: Text('🌿',
+                                        style: TextStyle(fontSize: 36))),
+                                Positioned(
+                                    left: 72,
+                                    bottom: 28,
+                                    child: Text('🪨',
+                                        style: TextStyle(fontSize: 28))),
+                                Positioned(
+                                    right: 24,
+                                    bottom: 32,
+                                    child: Text('🪸',
+                                        style: TextStyle(fontSize: 34))),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBackground,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStat('💰', 'Points', '$points'),
+                                _buildStat('🐟', 'Fishes', '$fishCount/10'),
+                                _buildStat('🍖', 'Food', '$foodStock'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildButton(
+                            context,
+                            label: 'FEED',
+                            icon: Icons.restaurant,
+                            onPressed: () {
+                              controller.burstBubbles();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Fed fish! 🐟'),
+                                    duration: Duration(seconds: 2)),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildButton(
+                            context,
+                            label: 'STORE',
+                            icon: Icons.shopping_cart,
+                            onPressed: () {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const StoreScreen()));
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -184,12 +192,10 @@ class AquariumScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildButton(
-    BuildContext context, {
-    required String label,
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
+  Widget _buildButton(BuildContext context,
+      {required String label,
+      required IconData icon,
+      required VoidCallback onPressed}) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon),
