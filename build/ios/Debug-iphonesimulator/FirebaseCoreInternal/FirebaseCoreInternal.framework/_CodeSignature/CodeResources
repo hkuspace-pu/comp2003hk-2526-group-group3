@@ -26,11 +26,11 @@
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo</key>
 		<data>
-		LxqciNMpYzlADr8I933YBYKMedQ=
+		Q0PzH/5GzwMVMnLiMaS1CW3EWGo=
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo</key>
 		<data>
-		61l3W5WOOHAmdsH0ojs5RmHWWQI=
+		fqlX764atLhPuX8pkteTBttjWQ4=
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/arm64-apple-ios-simulator.abi.json</key>
 		<data>
@@ -42,7 +42,7 @@
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/arm64-apple-ios-simulator.swiftmodule</key>
 		<data>
-		ku1zSVS05xkEj5VghwDD0h9bgWU=
+		RsVUtB1cgo8U2yZFo9YSE7VUqSE=
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/x86_64-apple-ios-simulator.abi.json</key>
 		<data>
@@ -54,7 +54,7 @@
 		</data>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/x86_64-apple-ios-simulator.swiftmodule</key>
 		<data>
-		At8ROcQ8Lcb47Jaq62FhySPno14=
+		tUuJs3YAhHKuRj09frPppCj443g=
 		</data>
 		<key>Modules/module.modulemap</key>
 		<data>
@@ -95,14 +95,14 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			EJUR7L4LyCCsT/Xrny++bzOoay/C2KxVkqjjDWjWELE=
+			jse0DO4DZ1LjdkqMdA4d2eAZZsKlaIN/H+b7y2O9TRc=
 			</data>
 		</dict>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			l5oSGdNOYpTR0dfeYVqQbHBxm4edcbUoiVhAe5unUMk=
+			gJQD8XWDEsdc7XXv5a+u9SZnpg86DClMbXD0z0KV+XE=
 			</data>
 		</dict>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/arm64-apple-ios-simulator.abi.json</key>
@@ -123,7 +123,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			jaxlPlex2mgGLSS5a7YPKqcNIFt+nM3oZz9GNE4l9/Y=
+			GAgxgyz9k6HEtzWrDFn5nrxW3RFIBBKuy98j12g8ShA=
 			</data>
 		</dict>
 		<key>Modules/FirebaseCoreInternal.swiftmodule/x86_64-apple-ios-simulator.abi.json</key>
@@ -144,7 +144,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			fq7GpYJiTxy+N5x3myVVjNkibTWo45QI2JT6eZtJoLw=
+			ytwMmooOXSVquVUU7rc0aJeDIvPjBh8vJEk2bPvtQew=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>

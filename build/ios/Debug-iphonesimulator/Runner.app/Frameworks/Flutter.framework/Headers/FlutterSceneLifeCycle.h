@@ -207,25 +207,11 @@ API_AVAILABLE(ios(13.0))
  * `FlutterPluginSceneLifeCycleDelegate` that can be used to forward scene life-cycle events to
  * Flutter plugins.
  *
- * This is typically implemented by the app's `SceneDelegate`, as a `FlutterSceneLifeCycleProvider`
- * is associated with one and only one `UIScene`.
+ * This is typically implemented by the app's `SceneDelegate`.
  */
 API_AVAILABLE(ios(13.0))
 @protocol FlutterSceneLifeCycleProvider
-
-/**
- * The `FlutterPluginSceneLifeCycleDelegate` instance for forwarding `UIScene` events
- * to plugins associated with this `UIScene`.
- *
- * The implementer of this protocol is responsible for creating the
- * `FlutterPluginSceneLifeCycleDelegate` object, as well as forwarding `UIScene` events
- * to plugins by calling the corresponding methods defined on
- * `FlutterPluginSceneLifeCycleDelegate`.
- *
- * The `FlutterPluginSceneLifeCycleDelegate` implementation is stateful. For this reason,
- * this property getter should typically always return the same object.
- */
-@property(nonatomic, readonly) FlutterPluginSceneLifeCycleDelegate* sceneLifeCycleDelegate;
+@property(nonatomic, strong) FlutterPluginSceneLifeCycleDelegate* sceneLifeCycleDelegate;
 @end
 
 NS_ASSUME_NONNULL_END
