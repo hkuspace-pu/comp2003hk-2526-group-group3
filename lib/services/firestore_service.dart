@@ -47,6 +47,33 @@ class FirestoreService {
     await _db.collection('users').doc(uid).update(data);
   }
 
+
+  Future<int> getDeviceServerTimeSkewSeconds({required String uid}) async {
+    final ref = _db.collection('users').doc(uid).collection('timeChecks').doc();
+
+    final deviceNow = DateTime.now();
+    await ref.set({
+      'deviceNow': Timestamp.fromDate(deviceNow),
+      'serverNow': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    DocumentSnapshot<Map<String, dynamic>> snap;
+    Timestamp? serverTs;
+    for (int i = 0; i < 5; i++) {
+      snap = await ref.get(const GetOptions(source: Source.server));
+      final data = snap.data();
+      if (data != null && data['serverNow'] is Timestamp) {
+        serverTs = data['serverNow'] as Timestamp;
+        final deviceTs = data['deviceNow'] as Timestamp;
+        return deviceTs.toDate().difference(serverTs.toDate()).inSeconds;
+      }
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    return 999999;
+  }
+
+
   // ─── Focus Sessions ─────────────────────────────────────────
 
   Future<void> saveFocusSession({
@@ -66,9 +93,30 @@ class FirestoreService {
       'completed': true,
     });
 
-    // Update user profile stats
-    final userDoc = await _db.collection('users').doc(uid).get();
-    final data = userDoc.data()!;
+    final userRef = _db.collection('users').doc(uid);
+    final userDoc = await userRef.get();
+
+    // create a default user profile
+    if (!userDoc.exists || userDoc.data() == null) {
+      await userRef.set({
+        'email': '',
+        'displayName': '',
+        'totalPoints': 0,
+        'totalFocusMinutes': 0,
+        'sessionCount': 0,
+        'activityCount': 0,
+        'currentStreak': 0,
+        'level': 1,
+        'ownedFish': [],
+        'ownedDecorations': [],
+        'foodStock': 0,
+        'lastActiveDate': null,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    final freshDoc = await userRef.get();
+    final data = freshDoc.data() ?? <String, dynamic>{};
 
     final lastActiveDate = data['lastActiveDate'] != null
         ? (data['lastActiveDate'] as Timestamp).toDate()

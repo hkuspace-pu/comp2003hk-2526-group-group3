@@ -3,6 +3,8 @@ import 'dart:async';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 import 'focus_complete_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firestore_service.dart';
 
 class FocusTimerScreen extends StatefulWidget {
   final int duration;
@@ -20,19 +22,63 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
   late int _remainingSeconds;
   late DateTime _startTime;
   Timer? _timer;
+  Timer? integrityTimer;
   bool _isPaused = false;
+
+  final FirestoreService _firestoreService = FirestoreService();
+  final Stopwatch stopwatch = Stopwatch();
+  late DateTime wallStart;
+  Duration totalPaused = Duration.zero;
+  DateTime? pauseStarted;
+  DateTime? lastWallNow;
+
+  int? skewSecondsAtStart;
+  bool timeIntegrityPassed = true;
+
+  static const int maxStartSkewSeconds = 120;
+  static const int maxDriftSeconds = 15;
 
   @override
   void initState() {
     super.initState();
     _remainingSeconds = widget.duration * 60;
     _startTime = DateTime.now();
+    wallStart = DateTime.now();
+    lastWallNow = wallStart;
+    initAndStart();
+  }
+
+  Future<void> initAndStart() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      showErrorAndExit('You are not logged in.');
+      return;
+    }
+
+    final skew =
+        await _firestoreService.getDeviceServerTimeSkewSeconds(uid: user.uid);
+    skewSecondsAtStart = skew;
+
+    if (skew.abs() > maxStartSkewSeconds) {
+      timeIntegrityPassed = false;
+      showErrorAndExit(
+        'Device time looks incorrect.\n'
+        'Time skew: ${skew}s (limit: ${maxStartSkewSeconds}s).\n'
+        'Please enable automatic date & time and try again.',
+      );
+      return;
+    }
+    stopwatch.start();
     _startTimer();
+    integrityTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      checkTimeIntegrity();
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    integrityTimer?.cancel();
     super.dispose();
   }
 
@@ -44,6 +90,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
         });
       } else {
         _timer?.cancel();
+        integrityTimer?.cancel();
         _onComplete();
       }
     });
@@ -53,14 +100,110 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
     setState(() {
       _isPaused = true;
       _timer?.cancel();
+      integrityTimer?.cancel();
+      stopwatch.stop();
+      pauseStarted = DateTime.now();
     });
   }
 
   void _resumeTimer() {
     setState(() {
       _isPaused = false;
+
+      if (pauseStarted != null) {
+        totalPaused += DateTime.now().difference(pauseStarted!);
+        pauseStarted = null;
+      }
+      stopwatch.start();
       _startTimer();
+      integrityTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+        checkTimeIntegrity();
+      });
     });
+  }
+
+  void checkTimeIntegrity() {
+    if (_isPaused) return;
+
+    final now = DateTime.now();
+    final last = lastWallNow;
+
+    if (last != null &&
+        now.isBefore(last.subtract(const Duration(seconds: 2)))) {
+      timeIntegrityPassed = false;
+      onTimeTamperDetected('System time moved backwards.');
+      return;
+    }
+
+    final expectedElapsed = now.difference(wallStart) - totalPaused;
+    final drift =
+        (expectedElapsed.inSeconds - stopwatch.elapsed.inSeconds).abs();
+
+    if (drift > maxDriftSeconds) {
+      timeIntegrityPassed = false;
+      onTimeTamperDetected(
+        'System time changed during focus.\n'
+        'Detected drift: ${drift}s (limit: ${maxDriftSeconds}s).',
+      );
+      return;
+    }
+    lastWallNow = now;
+  }
+
+  void onTimeTamperDetected(String reason) {
+    cleanupTimers();
+
+    showAlertDialog(
+      title: 'Time Integrity Failed',
+      message: '$reason\n\n'
+          'This focus session is cancelled to prevent cheating.\n'
+          'Please set device time to automatic and try again.',
+      shouldPopTwice: true,
+    );
+  }
+
+  void showErrorAndExit(String message) {
+    cleanupTimers();
+    showAlertDialog(
+      title: 'Cannot Start Focus',
+      message: message,
+      shouldPopTwice: false,
+    );
+  }
+
+  void cleanupTimers() {
+    _timer?.cancel();
+    integrityTimer?.cancel();
+    stopwatch.stop();
+  }
+
+  void showAlertDialog({
+    required String title,
+    required String message,
+    required bool shouldPopTwice,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.black87),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (shouldPopTwice) {
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('OK'),
+          )
+        ],
+      ),
+    );
   }
 
   void _onComplete() {

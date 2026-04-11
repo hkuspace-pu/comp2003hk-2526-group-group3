@@ -42,7 +42,12 @@ class _FocusCompleteScreenState extends State<FocusCompleteScreen> {
 
   Future<void> _saveSession() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+
+    if (user == null) {
+      if (mounted) setState(() => _isSaving = false);
+      return;
+    }
+
 
     final points = _calculatePoints();
 

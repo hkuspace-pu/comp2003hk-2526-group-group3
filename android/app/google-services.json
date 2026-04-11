@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "462764864604",
-    "project_id": "focus-aquarium",
-    "storage_bucket": "focus-aquarium.firebasestorage.app"
+    "project_number": "687897477415",
+    "project_id": "aquariumapp-707aa",
+    "storage_bucket": "aquariumapp-707aa.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:462764864604:android:a6bbec99cd8713d95ca299",
+        "mobilesdk_app_id": "1:687897477415:android:09842ff013b37acc4b6902",
         "android_client_info": {
           "package_name": "com.example.screen_time_tracker_with_aquarium"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCzPEofrEKpx90cyTQaad_cl_WA0A3Plp4"
+          "current_key": "AIzaSyBG9vtMS_mwWgwQDhy8ygF1O2EgvD6QfX0"
         }
       ],
       "services": {
