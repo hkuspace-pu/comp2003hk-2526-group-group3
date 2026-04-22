@@ -16,15 +16,29 @@ class AquariumPainter extends CustomPainter {
   });
 
   @override
+  @override
   void paint(Canvas canvas, Size size) {
+    const clipRadius = 18.0;
+    final clipRRect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(clipRadius),
+    );
+
+    canvas.save();
+    canvas.clipRRect(clipRRect);
+
     _drawBackground(canvas, size);
-    _drawSurfaceHighlight(canvas, size, time); // subtle top wave
+    _drawSurfaceHighlight(canvas, size, time);
     _drawGlassRim(canvas, size);
     _drawSandTray(canvas, size);
     _drawSeaweed(canvas, size, time);
+
     for (final b in bubbles) b.draw(canvas);
     for (final f in fishes) f.draw(canvas, time);
+
     _drawCausticsOverlay(canvas, size, time);
+
+    canvas.restore();
   }
 
   void _drawBackground(Canvas canvas, Size size) {
