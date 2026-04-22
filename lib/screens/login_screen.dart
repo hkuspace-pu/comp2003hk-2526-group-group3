@@ -53,6 +53,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _onForgotPassword() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please contact admin to reset password.')),
+    );
+  }
+
   String _parseError(String error) {
     if (error.contains('user-not-found'))
       return 'No account found with this email';
@@ -150,6 +156,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                Center(
+                  child: TextButton(
+                    onPressed: _onForgotPassword,
+                    child: const Text(
+                      'Forget password?',
+                      style: TextStyle(
+                        color: AppColors.textWhite,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
               ],
             ),
           ),
