@@ -46,9 +46,8 @@ class _AquariumScreenState extends State<AquariumScreen> {
     FocusScope.of(context).unfocus();
     await WidgetsBinding.instance.endOfFrame;
 
-    final boundary =
-        _tankCaptureKey.currentContext?.findRenderObject()
-            as RenderRepaintBoundary?;
+    final boundary = _tankCaptureKey.currentContext?.findRenderObject()
+        as RenderRepaintBoundary?;
     if (boundary == null) {
       throw Exception('not found render object for tank capture');
     }
@@ -156,7 +155,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                   HungerBatteryIndicator(
                                     percent: hungerPercent,
                                   ),
-                                  _buildShareButton(
+                                  _shareButton(
                                     onTap: () => _onSharePressed(
                                       points: points,
                                       fishCount: fishCount,
@@ -342,10 +341,9 @@ class _AquariumScreenState extends State<AquariumScreen> {
     required int hungerPercent,
   }) async {
     try {
-      final bytes = await _captureTankBytes();
+      final bytes = await _captureAquarium();
 
-      final text =
-          '''
+      final text = '''
 🐠 Focus Aquarium
 💰 Points: $points
 🐟 Fishes: $fishCount/10
