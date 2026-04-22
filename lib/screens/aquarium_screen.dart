@@ -1,34 +1,117 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
+import '../models/user_profile.dart';
+import '../screens/aquarium/animated_aquarium.dart';
+import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
-import '../services/firestore_service.dart';
-import '../models/user_profile.dart';
 import 'store_screen.dart';
-import '../screens/aquarium/animated_aquarium.dart';
 
-class AquariumScreen extends StatelessWidget {
+class AquariumScreen extends StatefulWidget {
   const AquariumScreen({Key? key}) : super(key: key);
 
   @override
+  State<AquariumScreen> createState() => _AquariumScreenState();
+}
+
+class _AquariumScreenState extends State<AquariumScreen> {
+  late final AnimatedAquariumController _controller;
+  late final FirestoreService _firestoreService;
+  late final String _uid;
+
+  final GlobalKey _tankCaptureKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimatedAquariumController();
+    _firestoreService = FirestoreService();
+    _uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  Future<Uint8List> _captureAquarim() async {
+    FocusScope.of(context).unfocus();
+    await WidgetsBinding.instance.endOfFrame;
+
+    final boundary = _tankCaptureKey.currentContext?.findRenderObject()
+        as RenderRepaintBoundary?;
+    if (boundary == null) {
+      throw Exception('not found render object for tank capture');
+    }
+
+    final image = await boundary.toImage(pixelRatio: 3.0);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) {
+      throw Exception('Can not get PNG byte data from image');
+    }
+    return byteData.buffer.asUint8List();
+  }
+
+  Future<void> _onFeedPressed(int foodStock) async {
+    if (_uid.isEmpty) return;
+
+    if (foodStock <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No food left 🍖 Buy more in Store.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final ok = await _firestoreService.feedFish(_uid);
+    if (!mounted) return;
+
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Feed failed. Please try again.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _controller.burstBubbles();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = AnimatedAquariumController();
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final firestoreService = FirestoreService();
+    final uid = _uid;
 
     return StreamBuilder<UserProfile?>(
-      stream: firestoreService.getUserProfileStream(uid),
+      stream: _firestoreService.getUserProfileStream(uid),
       builder: (context, snapshot) {
         final profile = snapshot.data;
         final points = profile?.totalPoints ?? 0;
-        final fishCount = profile?.ownedFish.length ?? 0;
         final foodStock = profile?.foodStock ?? 0;
-        final fishEmojis = profile?.ownedFish
-                .map((f) =>
-                    AppConstants.storeItems[f]?['icon'] as String? ?? '🐟')
-                .toList() ??
-            ['🐟'];
+        final owned = profile?.ownedFish ?? <String>[];
+        final fishCount = owned.length;
+        final storedHunger = (profile?.hungerPercent ?? 70).toDouble();
+        final hungerUpdatedAt = profile?.hungerUpdatedAt;
+        final hungerPercent = _firestoreService
+            .computeCurrentHungerPercent(
+              storedPercent: storedHunger,
+              updatedAt: hungerUpdatedAt,
+            )
+            .round();
+        final fishEmojiTypes = owned
+            .map(
+                (id) => AppConstants.storeItems[id]?['icon'] as String? ?? '🐟')
+            .toList();
 
         return Scaffold(
           appBar: AppBar(
@@ -51,121 +134,130 @@ class AquariumScreen extends StatelessWidget {
           ),
           body: GradientBackground(
             child: SafeArea(
-              child: Column(
+              child: Stack(
                 children: [
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.all(20),
-                          padding: const EdgeInsets.all(20),
-                          height: 400,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0077BE).withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: AppColors.textWhite.withOpacity(0.3),
-                              width: 2,
+                  Column(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 20),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  HungerBatteryIndicator(
+                                      percent: hungerPercent),
+                                ],
+                              ),
                             ),
-                          ),
-                          child: AnimatedAquarium(
-                            controller: controller,
-                            fishCount: fishCount > 0 ? fishCount : 1,
-                            fishEmojiTypes:
-                                fishEmojis.isNotEmpty ? fishEmojis : ['🐟'],
-                            overlayChild: Stack(
-                              children: const [
-                                Positioned.fill(
-                                  child: IgnorePointer(
-                                    child: Center(
-                                      child: Text(
-                                        '~~~~ Water Surface ~~~~',
-                                        style: TextStyle(
-                                          color: AppColors.textGrey,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
+                            const SizedBox(height: 10),
+                            RepaintBoundary(
+                              key: _tankCaptureKey,
+                              child: Container(
+                                margin: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(20),
+                                height: 400,
+                                decoration: BoxDecoration(
+                                  color:
+                                      const Color(0xFF0077BE).withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: AppColors.textWhite.withOpacity(0.3),
+                                    width: 2,
                                   ),
                                 ),
-                                Positioned(
-                                    left: 16,
-                                    bottom: 26,
-                                    child: Text('🌿',
-                                        style: TextStyle(fontSize: 36))),
-                                Positioned(
-                                    left: 72,
-                                    bottom: 28,
-                                    child: Text('🪨',
-                                        style: TextStyle(fontSize: 28))),
-                                Positioned(
-                                    right: 24,
-                                    bottom: 32,
-                                    child: Text('🪸',
-                                        style: TextStyle(fontSize: 34))),
-                              ],
+                                child: AnimatedAquarium(
+                                  controller: _controller,
+                                  fishCount: fishEmojiTypes.isNotEmpty
+                                      ? fishEmojiTypes.length
+                                      : 1,
+                                  fishEmojiTypes: fishEmojiTypes.isNotEmpty
+                                      ? fishEmojiTypes
+                                      : ['🐟'],
+                                  overlayChild: Stack(
+                                    children: const [
+                                      Positioned.fill(
+                                          child:
+                                              IgnorePointer(child: Center())),
+                                      Positioned(
+                                          left: 16,
+                                          bottom: 26,
+                                          child: Text('🌿',
+                                              style: TextStyle(fontSize: 36))),
+                                      Positioned(
+                                          left: 72,
+                                          bottom: 28,
+                                          child: Text('🪨',
+                                              style: TextStyle(fontSize: 28))),
+                                      Positioned(
+                                          right: 24,
+                                          bottom: 32,
+                                          child: Text('🪸',
+                                              style: TextStyle(fontSize: 34))),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBackground,
-                              borderRadius: BorderRadius.circular(12),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 20),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppColors.cardBackground,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _buildStat('💰', 'Points', '$points'),
+                                    _buildStat('🐟', 'Fishes', '$fishCount/10'),
+                                    _buildStat('🍖', 'Food', '$foodStock'),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildStat('💰', 'Points', '$points'),
-                                _buildStat('🐟', 'Fishes', '$fishCount/10'),
-                                _buildStat('🍖', 'Food', '$foodStock'),
-                              ],
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildButton(
+                                context,
+                                label: 'FEED',
+                                icon: Icons.restaurant,
+                                onPressed: () async =>
+                                    _onFeedPressed(foodStock),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildButton(
+                                context,
+                                label: 'STORE',
+                                icon: Icons.shopping_cart,
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => const StoreScreen()),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _buildButton(
-                            context,
-                            label: 'FEED',
-                            icon: Icons.restaurant,
-                            onPressed: () {
-                              controller.burstBubbles();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Fed fish! 🐟'),
-                                    duration: Duration(seconds: 2)),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildButton(
-                            context,
-                            label: 'STORE',
-                            icon: Icons.shopping_cart,
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const StoreScreen()));
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -183,19 +275,24 @@ class AquariumScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text(label,
             style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
-        Text(value,
-            style: const TextStyle(
-                color: AppColors.textWhite,
-                fontSize: 16,
-                fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.textWhite,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildButton(BuildContext context,
-      {required String label,
-      required IconData icon,
-      required VoidCallback onPressed}) {
+  Widget _buildButton(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon),
@@ -208,4 +305,59 @@ class AquariumScreen extends StatelessWidget {
       ),
     );
   }
-}
+
+class HungerBatteryIndicator extends StatelessWidget {
+  final int percent;
+  const HungerBatteryIndicator({super.key, required this.percent});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = percent.clamp(0, 100);
+    final color = p >= 60
+        ? Colors.lightGreenAccent
+        : (p >= 30 ? Colors.amberAccent : Colors.redAccent);
+
+    IconData icon;
+    if (p >= 90) {
+      icon = Icons.battery_full;
+    } else if (p >= 75) {
+      icon = Icons.battery_6_bar;
+    } else if (p >= 60) {
+      icon = Icons.battery_5_bar;
+    } else if (p >= 45) {
+      icon = Icons.battery_4_bar;
+    } else if (p >= 30) {
+      icon = Icons.battery_3_bar;
+    } else if (p >= 15) {
+      icon = Icons.battery_2_bar;
+    } else if (p > 0) {
+      icon = Icons.battery_1_bar;
+    } else {
+      icon = Icons.battery_0_bar;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.28),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 6),
+          Text(
+            '$p%',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}}

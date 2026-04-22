@@ -6,8 +6,6 @@ import '../models/activity_log.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ─── User Profile ───────────────────────────────────────────
-
   Future<void> createUserProfile({
     required String uid,
     required String email,
@@ -26,6 +24,8 @@ class FirestoreService {
       'ownedDecorations': [],
       'foodStock': 0,
       'lastActiveDate': null,
+      'hungerPercent': 70.0,
+      'hungerUpdatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -46,7 +46,6 @@ class FirestoreService {
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
     await _db.collection('users').doc(uid).update(data);
   }
-
 
   Future<int> getDeviceServerTimeSkewSeconds({required String uid}) async {
     final ref = _db.collection('users').doc(uid).collection('timeChecks').doc();
@@ -73,9 +72,6 @@ class FirestoreService {
     return 999999;
   }
 
-
-  // ─── Focus Sessions ─────────────────────────────────────────
-
   Future<void> saveFocusSession({
     required String uid,
     required int durationMinutes,
@@ -83,7 +79,6 @@ class FirestoreService {
     required DateTime startTime,
     required DateTime endTime,
   }) async {
-    // Save session record
     await _db.collection('users').doc(uid).collection('sessions').add({
       'uid': uid,
       'durationMinutes': durationMinutes,
@@ -96,7 +91,6 @@ class FirestoreService {
     final userRef = _db.collection('users').doc(uid);
     final userDoc = await userRef.get();
 
-    // create a default user profile
     if (!userDoc.exists || userDoc.data() == null) {
       await userRef.set({
         'email': '',
@@ -111,6 +105,8 @@ class FirestoreService {
         'ownedDecorations': [],
         'foodStock': 0,
         'lastActiveDate': null,
+        'hungerPercent': 70.0,
+        'hungerUpdatedAt': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     }
@@ -127,13 +123,12 @@ class FirestoreService {
     if (lastActiveDate != null) {
       final difference = today.difference(lastActiveDate).inDays;
       if (difference == 1) {
-        newStreak += 1; // Consecutive day
+        newStreak += 1;
       } else if (difference > 1) {
-        newStreak = 1; // Streak broken
+        newStreak = 1;
       }
-      // Same day: streak unchanged
     } else {
-      newStreak = 1; // First session
+      newStreak = 1;
     }
 
     final currentPoints = data['totalPoints'] ?? 0;
@@ -184,8 +179,6 @@ class FirestoreService {
         .toList();
   }
 
-  // ─── Store / Points ──────────────────────────────────────────
-
   Future<bool> purchaseItem({
     required String uid,
     required String itemKey,
@@ -198,7 +191,7 @@ class FirestoreService {
     final data = userDoc.data()!;
     final currentPoints = data['totalPoints'] ?? 0;
 
-    if (currentPoints < price) return false; // Not enough points
+    if (currentPoints < price) return false;
 
     final Map<String, dynamic> updates = {
       'totalPoints': currentPoints - price,
@@ -221,8 +214,6 @@ class FirestoreService {
     return true;
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────
-
   int _calculateLevel(int points) {
     if (points < 500) return 1;
     if (points < 1500) return 2;
@@ -235,7 +226,24 @@ class FirestoreService {
     if (points < 30000) return 9;
     return 10;
   }
-  // ─── Activity Logs ───────────────────────────────────────────
+
+  static const double _decayPerHour = 2.0;
+  double computeCurrentHungerPercent({
+    required double storedPercent,
+    required DateTime? updatedAt,
+    DateTime? now,
+  }) {
+    final safeStored = storedPercent.clamp(0.0, 100.0);
+    if (updatedAt == null) return safeStored;
+
+    final currentNow = now ?? DateTime.now();
+    final diffMinutes = currentNow.difference(updatedAt).inMinutes;
+    if (diffMinutes <= 0) return safeStored;
+
+    final decay = (diffMinutes / 60.0) * _decayPerHour;
+    final current = (safeStored - decay).clamp(0.0, 100.0);
+    return current;
+  }
 
   Future<void> saveActivityLog({
     required String uid,
@@ -283,14 +291,10 @@ class FirestoreService {
         .toList();
   }
 
-  // ─── Data Export ─────────────────────────────────────────────
-
   Future<Map<String, dynamic>> exportUserData(String uid) async {
     final userDoc = await _db.collection('users').doc(uid).get();
     final sessions = await getFocusSessions(uid);
     final activities = await getActivityLogs(uid);
-
-    // Convert profile data, handling Timestamp fields
     final profileData = userDoc.data()!;
     final cleanProfile = profileData.map((key, value) {
       if (value is Timestamp) {
@@ -330,7 +334,6 @@ class FirestoreService {
     final sessions = data['sessions'] as List<dynamic>?;
     final activities = data['activities'] as List<dynamic>?;
 
-    // Restore profile stats
     if (profile != null) {
       await _db.collection('users').doc(uid).update({
         'totalPoints': profile['totalPoints'] ?? 0,
@@ -345,7 +348,6 @@ class FirestoreService {
       });
     }
 
-    // Restore sessions
     if (sessions != null) {
       for (final s in sessions) {
         await _db.collection('users').doc(uid).collection('sessions').add({
@@ -359,7 +361,6 @@ class FirestoreService {
       }
     }
 
-    // Restore activities
     if (activities != null) {
       for (final a in activities) {
         await _db.collection('users').doc(uid).collection('activities').add({
@@ -376,21 +377,18 @@ class FirestoreService {
   }
 
   Future<void> deleteAllUserData(String uid) async {
-    // Delete sessions
     final sessions =
         await _db.collection('users').doc(uid).collection('sessions').get();
     for (final doc in sessions.docs) {
       await doc.reference.delete();
     }
 
-    // Delete activities
     final activities =
         await _db.collection('users').doc(uid).collection('activities').get();
     for (final doc in activities.docs) {
       await doc.reference.delete();
     }
 
-    // Reset profile stats
     await _db.collection('users').doc(uid).update({
       'totalPoints': 0,
       'totalFocusMinutes': 0,
@@ -402,6 +400,38 @@ class FirestoreService {
       'ownedDecorations': [],
       'foodStock': 0,
       'lastActiveDate': null,
+    });
+  }
+
+  Future<bool> feedFish(String uid) async {
+    final userRef = _db.collection('users').doc(uid);
+
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) return false;
+
+      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final currentFood = (data['foodStock'] ?? 0) as int;
+      if (currentFood <= 0) return false;
+
+      final stored = (data['hungerPercent'] ?? 100).toDouble();
+      final ts = data['hungerUpdatedAt'];
+      final updatedAt = ts is Timestamp ? ts.toDate() : null;
+
+      final currentHunger = computeCurrentHungerPercent(
+        storedPercent: stored,
+        updatedAt: updatedAt,
+      );
+
+      final newHunger = (currentHunger + 10.0).clamp(0.0, 100.0);
+
+      tx.update(userRef, {
+        'foodStock': currentFood - 1,
+        'hungerPercent': newHunger,
+        'hungerUpdatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
     });
   }
 }

@@ -12,6 +12,8 @@ class UserProfile {
   final List<String> ownedDecorations;
   final int foodStock;
   final DateTime createdAt;
+  final int hungerPercent;
+  final DateTime hungerUpdatedAt;
 
   UserProfile({
     required this.uid,
@@ -27,9 +29,16 @@ class UserProfile {
     required this.ownedDecorations,
     required this.foodStock,
     required this.createdAt,
+    required this.hungerPercent,
+    required this.hungerUpdatedAt,
   });
 
   factory UserProfile.fromFirestore(Map<String, dynamic> data, String uid) {
+    final createdAt = data['createdAt']?.toDate() ?? DateTime.now();
+    final hungerPercent = (data['hungerPercent'] ?? 100).toDouble();
+    final ts = data['hungerUpdatedAt'];
+    final hungerUpdatedAt = data['hungerUpdatedAt']?.toDate() ?? createdAt;
+
     return UserProfile(
       uid: uid,
       email: data['email'] ?? '',
@@ -44,6 +53,8 @@ class UserProfile {
       ownedDecorations: List<String>.from(data['ownedDecorations'] ?? []),
       foodStock: data['foodStock'] ?? 0,
       createdAt: data['createdAt']?.toDate() ?? DateTime.now(),
+      hungerPercent: hungerPercent.clamp(0, 100),
+      hungerUpdatedAt: hungerUpdatedAt,
     );
   }
 
@@ -61,6 +72,8 @@ class UserProfile {
       'ownedDecorations': ownedDecorations,
       'foodStock': foodStock,
       'createdAt': createdAt,
+      'hungerPercent': hungerPercent,
+      'hungerUpdatedAt': hungerUpdatedAt,
     };
   }
 
@@ -74,6 +87,8 @@ class UserProfile {
     List<String>? ownedFish,
     List<String>? ownedDecorations,
     int? foodStock,
+    int? hungerPercent,
+    DateTime? hungerUpdatedAt,
   }) {
     return UserProfile(
       uid: uid,
@@ -89,6 +104,8 @@ class UserProfile {
       ownedDecorations: ownedDecorations ?? this.ownedDecorations,
       foodStock: foodStock ?? this.foodStock,
       createdAt: createdAt,
+      hungerPercent: hungerPercent ?? this.hungerPercent,
+      hungerUpdatedAt: hungerUpdatedAt ?? this.hungerUpdatedAt,
     );
   }
 }
