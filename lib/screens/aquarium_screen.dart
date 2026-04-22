@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/user_profile.dart';
 import '../screens/aquarium/animated_aquarium.dart';
@@ -41,12 +42,13 @@ class _AquariumScreenState extends State<AquariumScreen> {
     super.dispose();
   }
 
-  Future<Uint8List> _captureAquarim() async {
+  Future<Uint8List> _captureAquarium() async {
     FocusScope.of(context).unfocus();
     await WidgetsBinding.instance.endOfFrame;
 
-    final boundary = _tankCaptureKey.currentContext?.findRenderObject()
-        as RenderRepaintBoundary?;
+    final boundary =
+        _tankCaptureKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
     if (boundary == null) {
       throw Exception('not found render object for tank capture');
     }
@@ -110,7 +112,8 @@ class _AquariumScreenState extends State<AquariumScreen> {
             .round();
         final fishEmojiTypes = owned
             .map(
-                (id) => AppConstants.storeItems[id]?['icon'] as String? ?? '🐟')
+              (id) => AppConstants.storeItems[id]?['icon'] as String? ?? '🐟',
+            )
             .toList();
 
         return Scaffold(
@@ -143,14 +146,24 @@ class _AquariumScreenState extends State<AquariumScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
                               child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   HungerBatteryIndicator(
-                                      percent: hungerPercent),
+                                    percent: hungerPercent,
+                                  ),
+                                  _buildShareButton(
+                                    onTap: () => _onSharePressed(
+                                      points: points,
+                                      fishCount: fishCount,
+                                      foodStock: foodStock,
+                                      hungerPercent: hungerPercent,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -162,8 +175,9 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                 padding: const EdgeInsets.all(20),
                                 height: 400,
                                 decoration: BoxDecoration(
-                                  color:
-                                      const Color(0xFF0077BE).withOpacity(0.3),
+                                  color: const Color(
+                                    0xFF0077BE,
+                                  ).withOpacity(0.3),
                                   borderRadius: BorderRadius.circular(24),
                                   border: Border.all(
                                     color: AppColors.textWhite.withOpacity(0.3),
@@ -181,31 +195,41 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                   overlayChild: Stack(
                                     children: const [
                                       Positioned.fill(
-                                          child:
-                                              IgnorePointer(child: Center())),
+                                        child: IgnorePointer(child: Center()),
+                                      ),
                                       Positioned(
-                                          left: 16,
-                                          bottom: 26,
-                                          child: Text('🌿',
-                                              style: TextStyle(fontSize: 36))),
+                                        left: 16,
+                                        bottom: 26,
+                                        child: Text(
+                                          '🌿',
+                                          style: TextStyle(fontSize: 36),
+                                        ),
+                                      ),
                                       Positioned(
-                                          left: 72,
-                                          bottom: 28,
-                                          child: Text('🪨',
-                                              style: TextStyle(fontSize: 28))),
+                                        left: 72,
+                                        bottom: 28,
+                                        child: Text(
+                                          '🪨',
+                                          style: TextStyle(fontSize: 28),
+                                        ),
+                                      ),
                                       Positioned(
-                                          right: 24,
-                                          bottom: 32,
-                                          child: Text('🪸',
-                                              style: TextStyle(fontSize: 34))),
+                                        right: 24,
+                                        bottom: 32,
+                                        child: Text(
+                                          '🪸',
+                                          style: TextStyle(fontSize: 34),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
                               ),
                             ),
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
                               child: Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
@@ -249,7 +273,8 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                        builder: (_) => const StoreScreen()),
+                                      builder: (_) => const StoreScreen(),
+                                    ),
                                   );
                                 },
                               ),
@@ -273,8 +298,10 @@ class _AquariumScreenState extends State<AquariumScreen> {
       children: [
         Text(icon, style: const TextStyle(fontSize: 24)),
         const SizedBox(height: 4),
-        Text(label,
-            style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+        ),
         Text(
           value,
           style: const TextStyle(
@@ -296,8 +323,10 @@ class _AquariumScreenState extends State<AquariumScreen> {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon),
-      label: Text(label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primaryDarkGrey,
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -305,6 +334,36 @@ class _AquariumScreenState extends State<AquariumScreen> {
       ),
     );
   }
+
+  Future<void> _onSharePressed({
+    required int points,
+    required int foodStock,
+    required int fishCount,
+    required int hungerPercent,
+  }) async {
+    try {
+      final bytes = await _captureTankBytes();
+
+      final text =
+          '''
+🐠 Focus Aquarium
+💰 Points: $points
+🐟 Fishes: $fishCount/10
+🍖 Food: $foodStock
+🔋 Hunger: $hungerPercent%
+''';
+
+      await Share.shareXFiles([
+        XFile.fromData(bytes, mimeType: 'image/png', name: 'aquarium.png'),
+      ], text: text);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Share capture failed: $e')));
+    }
+  }
+}
 
 class HungerBatteryIndicator extends StatelessWidget {
   final int percent;
@@ -360,4 +419,23 @@ class HungerBatteryIndicator extends StatelessWidget {
       ),
     );
   }
-}}
+}
+
+Widget _shareButton({required VoidCallback onTap}) {
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.25),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.25)),
+        ),
+        child: const Icon(Icons.share, color: Colors.white, size: 20),
+      ),
+    ),
+  );
+}
