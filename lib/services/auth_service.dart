@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'firestore_service.dart';
 
 class AuthService {
@@ -6,8 +7,11 @@ class AuthService {
   final FirestoreService _firestoreService = FirestoreService();
 
   User? get currentUser => _auth.currentUser;
-
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
+  }
 
   Future<UserCredential?> register({
     required String email,

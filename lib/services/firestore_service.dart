@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_profile.dart';
-import '../models/focus_session.dart';
+
 import '../models/activity_log.dart';
+import '../models/focus_session.dart';
+import '../models/user_profile.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
