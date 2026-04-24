@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'fish_types.dart';
 
 class Fish {
-  final FishType type;
+  final FishBean fish;
   final int level;
 
   Offset pos;
@@ -28,7 +28,7 @@ class Fish {
   double swimT;
 
   Fish({
-    required this.type,
+    required this.fish,
     required this.pos,
     required this.speed,
     required this.dir,
@@ -49,63 +49,53 @@ class Fish {
     this.sprite,
   });
 
-  factory Fish.randomOfType(
+  factory Fish.random(
     Random rng,
-    FishType type, {
+    FishBean fish, {
     Size? bounds,
     int level = 1,
   }) {
     final myRng = Random(rng.nextInt(1 << 31));
+
+    double speed;
+    Color color;
+
+    switch (fish.id) {
+      case 'clownfish':
+        speed = rng.nextDouble() * 70 + 50;
+        color = const Color(0xFFF77F00);
+        break;
+      case 'goldfish':
+        speed = rng.nextDouble() * 65 + 45;
+        color = const Color(0xFFFFC300);
+        break;
+      case 'shrimp':
+        speed = rng.nextDouble() * 35 + 20;
+        color = const Color(0xFFE74C3C);
+        break;
+      default:
+        speed = rng.nextDouble() * 75 + 50;
+        color = const Color(0xFF2E86DE);
+    }
+
     final baseSize = rng.nextDouble() * 1.1 + 0.7;
     final scale = (1 << (level - 1)).toDouble();
     final freq = rng.nextDouble() * 1.3 + 0.6;
     final amp = rng.nextDouble() * 0.22 + 0.12;
 
-    double speed;
-    Color color;
-    switch (type) {
-      case FishType.clown:
-        speed = rng.nextDouble() * 70 + 50;
-        color = const Color(0xFFF77F00);
-        break;
-      case FishType.gold:
-        speed = rng.nextDouble() * 65 + 45;
-        color = const Color(0xFFFFC300);
-        break;
-      case FishType.blue:
-        speed = rng.nextDouble() * 80 + 55;
-        color = const Color(0xFF2E86DE);
-        break;
-      case FishType.shrimp:
-        speed = rng.nextDouble() * 35 + 20;
-        color = const Color(0xFFE74C3C);
-        break;
-    }
-
     final w = bounds?.width ?? 360;
     final h = bounds?.height ?? 220;
 
-    final initPos = (type == FishType.shrimp)
-        ? Offset(
-            rng.nextDouble() * (w - 80) + 40,
-            h - (rng.nextDouble() * 60 + 60),
-          )
-        : Offset(
-            rng.nextDouble() * (w - 80) + 40,
-            rng.nextDouble() * (h - 120) + 60,
-          );
+    final initPos = Offset(
+      rng.nextDouble() * (w - 80) + 40,
+      rng.nextDouble() * (h - 120) + 60,
+    );
 
     final dir = rng.nextBool() ? 1 : -1;
-
     final baseY = initPos.dy;
-    final bobAmp =
-        (type == FishType.shrimp ? 2.5 : 5.0) * (rng.nextDouble() * 0.8 + 0.6);
-    final bobFreq =
-        (type == FishType.shrimp ? 1.2 : 1.6) * (rng.nextDouble() * 0.8 + 0.6);
-    final bobPhase = rng.nextDouble() * pi * 2;
 
     return Fish(
-      type: type,
+      fish: fish,
       pos: initPos,
       speed: speed,
       dir: dir,
@@ -116,12 +106,12 @@ class Fish {
       level: level,
       rng: myRng,
       baseYTarget: baseY,
-      baseYVel: 0.0,
+      baseYVel: 0,
       retargetIn: myRng.nextDouble() * 3 + 2,
       baseY: baseY,
-      bobAmp: bobAmp,
-      bobFreq: bobFreq,
-      bobPhase: bobPhase,
+      bobAmp: 5.0,
+      bobFreq: 1.6,
+      bobPhase: rng.nextDouble() * pi * 2,
       swimT: rng.nextDouble() * 10,
     );
   }
@@ -280,19 +270,19 @@ class Fish {
   }
 
   void _drawFallbackVector(Canvas canvas, double time) {
-    switch (type) {
-      case FishType.clown:
+    switch (fish.id) {
+      case 'clownfish':
         _drawClownFish(canvas, time);
         break;
-      case FishType.gold:
+      case 'goldfish':
         _drawGoldFish(canvas, time);
         break;
-      case FishType.blue:
-        _drawBlueFish(canvas, time);
-        break;
-      case FishType.shrimp:
+
+      case 'shrimp':
         _drawShrimp(canvas, time);
         break;
+      default:
+        _drawBlueFish(canvas, time);
     }
   }
 
