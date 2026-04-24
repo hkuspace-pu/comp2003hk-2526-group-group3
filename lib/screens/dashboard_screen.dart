@@ -1,15 +1,18 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import '../models/user_profile.dart';
 import '../services/firestore_service.dart';
 import '../utils/colors.dart';
-import '../widgets/gradient_background.dart';
 import '../widgets/bottom_nav_bar.dart';
-import 'focus_start_screen.dart';
+import '../widgets/gradient_background.dart';
 import 'add_activity_screen.dart';
 import 'aquarium_screen.dart';
-import 'statistics_screen.dart';
+import 'collection_screen.dart';
+import 'focus_start_screen.dart';
 import 'profile_screen.dart';
+import 'statistics_screen.dart';
+import 'store_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -37,9 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          setState(() => _currentIndex = index);
         },
       ),
     );
@@ -53,13 +54,13 @@ class _DashboardHome extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final firestoreService = FirestoreService();
-
     if (user == null) return const SizedBox.shrink();
 
     return StreamBuilder<UserProfile?>(
       stream: firestoreService.getUserProfileStream(user.uid),
       builder: (context, snapshot) {
         final profile = snapshot.data;
+
         final displayName = profile?.displayName ?? 'User';
         final totalPoints = profile?.totalPoints ?? 0;
         final currentStreak = profile?.currentStreak ?? 0;
@@ -71,11 +72,10 @@ class _DashboardHome extends StatelessWidget {
         return GradientBackground(
           child: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -111,9 +111,7 @@ class _DashboardHome extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Stats Row
+                  const SizedBox(height: 22),
                   Row(
                     children: [
                       _buildStatCard('⭐', 'Level', '$level', flex: 1),
@@ -134,8 +132,6 @@ class _DashboardHome extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 24),
-
-                  // Quick Actions
                   const Text(
                     'Quick Actions',
                     style: TextStyle(
@@ -144,7 +140,7 @@ class _DashboardHome extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
@@ -152,6 +148,7 @@ class _DashboardHome extends StatelessWidget {
                           context,
                           icon: '🎯',
                           label: 'Focus',
+                          height: 110,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -166,6 +163,7 @@ class _DashboardHome extends StatelessWidget {
                           context,
                           icon: '🏃',
                           label: 'Activity',
+                          height: 110,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -174,78 +172,43 @@ class _DashboardHome extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionCard(
+                          context,
+                          icon: '🛒',
+                          label: 'Store',
+                          height: 110,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const StoreScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildActionCard(
                           context,
-                          icon: '🐠',
-                          label: 'Aquarium',
+                          icon: '📖',
+                          label: 'Collections',
+                          height: 110,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const AquariumScreen(),
+                              builder: (context) => const CollectionScreen(),
                             ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Aquarium Preview
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBackground,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Your Aquarium 🐠',
-                          style: TextStyle(
-                            color: AppColors.textWhite,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Center(
-                          child:
-                              Text('🐠 🐟 🦐', style: TextStyle(fontSize: 40)),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '$fishCount fish in your aquarium',
-                          style: const TextStyle(
-                            color: AppColors.textGrey,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AquariumScreen(),
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primaryDarkGrey,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text('Visit Aquarium'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
@@ -296,18 +259,22 @@ class _DashboardHome extends StatelessWidget {
     required String icon,
     required String label,
     required VoidCallback onTap,
+    double height = 110,
   }) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        height: height,
         decoration: BoxDecoration(
           color: AppColors.cardBackground,
           borderRadius: BorderRadius.circular(12),
         ),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 32)),
+            Text(icon, style: const TextStyle(fontSize: 34)),
             const SizedBox(height: 8),
             Text(
               label,
@@ -318,6 +285,37 @@ class _DashboardHome extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWideActionCard(
+    BuildContext context, {
+    required String label,
+    required VoidCallback onTap,
+    double height = 84,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        height: height,
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textWhite,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.2,
+            ),
+          ),
         ),
       ),
     );
