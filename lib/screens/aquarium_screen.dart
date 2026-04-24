@@ -11,8 +11,8 @@ import '../models/user_profile.dart';
 import '../screens/aquarium/animated_aquarium.dart';
 import '../services/firestore_service.dart';
 import '../utils/colors.dart';
-import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
+import 'aquarium/fish_types.dart';
 import 'store_screen.dart';
 
 class AquariumScreen extends StatefulWidget {
@@ -25,16 +25,15 @@ class AquariumScreen extends StatefulWidget {
 class _AquariumScreenState extends State<AquariumScreen> {
   late final AnimatedAquariumController _controller;
   late final FirestoreService _firestoreService;
-  late final String _uid;
 
   final GlobalKey _tankCaptureKey = GlobalKey();
+  static const int _tankMax = 10;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimatedAquariumController();
     _firestoreService = FirestoreService();
-    _uid = FirebaseAuth.instance.currentUser?.uid ?? '';
   }
 
   @override
@@ -60,8 +59,8 @@ class _AquariumScreenState extends State<AquariumScreen> {
     return byteData.buffer.asUint8List();
   }
 
-  Future<void> _onFeedPressed(int foodStock) async {
-    if (_uid.isEmpty) return;
+  Future<void> _onFeedPressed(String uid, int foodStock) async {
+    if (uid.isEmpty) return;
 
     if (foodStock <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -73,7 +72,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
       return;
     }
 
-    final ok = await _firestoreService.feedFish(_uid);
+    final ok = await _firestoreService.feedFish(uid);
     if (!mounted) return;
 
     if (!ok) {
@@ -91,16 +90,29 @@ class _AquariumScreenState extends State<AquariumScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = _uid;
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text('Not logged in')),
+      );
+    }
+    final uid = user.uid;
 
     return StreamBuilder<UserProfile?>(
       stream: _firestoreService.getUserProfileStream(uid),
       builder: (context, snapshot) {
-        final profile = snapshot.data;
-        final points = profile?.totalPoints ?? 0;
-        final foodStock = profile?.foodStock ?? 0;
-        final owned = profile?.ownedFish ?? <String>[];
-        final fishCount = owned.length;
+        final profile = snapshot.data!;
+        final points = profile.totalPoints;
+        final foodStock = profile.foodStock;
+
+        final aquariumFishIds = List<String>.from(profile.aquariumFish);
+        final validFishIds = aquariumFishIds
+            .where((id) => FishCatalog.byId(id) != null)
+            .toList();
+
+        final fishCount = validFishIds.length;
+
         final storedHunger = (profile?.hungerPercent ?? 70).toDouble();
         final hungerUpdatedAt = profile?.hungerUpdatedAt;
         final hungerPercent = _firestoreService
@@ -108,12 +120,10 @@ class _AquariumScreenState extends State<AquariumScreen> {
               storedPercent: storedHunger,
               updatedAt: hungerUpdatedAt,
             )
-            .round();
-        final fishEmojiTypes = owned
-            .map(
-              (id) => AppConstants.storeItems[id]?['icon'] as String? ?? '🐟',
-            )
-            .toList();
+            .round()
+            .toDouble();
+        final renderFishCount =
+            (validFishIds.isNotEmpty ? validFishIds.length : 1);
 
         return Scaffold(
           appBar: AppBar(
@@ -183,45 +193,81 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                     width: 2,
                                   ),
                                 ),
-                                child: AnimatedAquarium(
-                                  controller: _controller,
-                                  fishCount: fishEmojiTypes.isNotEmpty
-                                      ? fishEmojiTypes.length
-                                      : 1,
-                                  fishEmojiTypes: fishEmojiTypes.isNotEmpty
-                                      ? fishEmojiTypes
-                                      : ['🐟'],
-                                  overlayChild: Stack(
-                                    children: const [
-                                      Positioned.fill(
-                                        child: IgnorePointer(child: Center()),
-                                      ),
-                                      Positioned(
-                                        left: 16,
-                                        bottom: 26,
+                                child: Stack(
+                                  children: [
+                                    if (validFishIds.isEmpty)
+                                      Center(
                                         child: Text(
-                                          '🌿',
-                                          style: TextStyle(fontSize: 36),
+                                          'No fish in tank yet 🐟\nGo to Collection to add fish.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color:
+                                                Colors.white.withOpacity(0.90),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      AnimatedAquarium(
+                                        controller: _controller,
+                                        fishCount: fishCount,
+                                        fishIds: validFishIds,
+                                        overlayChild: const Stack(
+                                          children: [
+                                            Positioned.fill(
+                                              child: IgnorePointer(
+                                                  child: Center()),
+                                            ),
+                                            Positioned(
+                                              left: 16,
+                                              bottom: 26,
+                                              child: Text('🌿',
+                                                  style:
+                                                      TextStyle(fontSize: 36)),
+                                            ),
+                                            Positioned(
+                                              left: 72,
+                                              bottom: 28,
+                                              child: Text('🪨',
+                                                  style:
+                                                      TextStyle(fontSize: 28)),
+                                            ),
+                                            Positioned(
+                                              right: 24,
+                                              bottom: 32,
+                                              child: Text('🪸',
+                                                  style:
+                                                      TextStyle(fontSize: 34)),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      Positioned(
-                                        left: 72,
-                                        bottom: 28,
+                                    Positioned(
+                                      right: 10,
+                                      top: 10,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.28),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          border: Border.all(
+                                              color: Colors.white
+                                                  .withOpacity(0.22)),
+                                        ),
                                         child: Text(
-                                          '🪨',
-                                          style: TextStyle(fontSize: 28),
+                                          '🐟 $fishCount/$_tankMax',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                       ),
-                                      Positioned(
-                                        right: 24,
-                                        bottom: 32,
-                                        child: Text(
-                                          '🪸',
-                                          style: TextStyle(fontSize: 34),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -259,7 +305,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                 label: 'FEED',
                                 icon: Icons.restaurant,
                                 onPressed: () async =>
-                                    _onFeedPressed(foodStock),
+                                    _onFeedPressed(uid, foodStock),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -338,7 +384,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
     required int points,
     required int foodStock,
     required int fishCount,
-    required int hungerPercent,
+    required double hungerPercent,
   }) async {
     try {
       final bytes = await _captureAquarium();
@@ -364,7 +410,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
 }
 
 class HungerBatteryIndicator extends StatelessWidget {
-  final int percent;
+  final double percent;
   const HungerBatteryIndicator({super.key, required this.percent});
 
   @override

@@ -6,6 +6,7 @@ import '../models/user_profile.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static const int maxAquariumFish = 10;
 
   Future<void> createUserProfile({
     required String uid,
@@ -22,6 +23,8 @@ class FirestoreService {
       'currentStreak': 0,
       'level': 1,
       'ownedFish': [],
+      'fishInventory': <String, int>{},
+      'aquariumFish': <String>[],
       'ownedDecorations': [],
       'foodStock': 0,
       'lastActiveDate': null,
@@ -38,14 +41,114 @@ class FirestoreService {
   }
 
   Stream<UserProfile?> getUserProfileStream(String uid) {
-    return _db.collection('users').doc(uid).snapshots().map((doc) {
+    final ref = _db.collection('users').doc(uid);
+
+    return ref.snapshots().asyncMap((doc) async {
       if (!doc.exists) return null;
-      return UserProfile.fromFirestore(doc.data()!, uid);
+
+      final data = doc.data()!;
+      final hasInventory = data.containsKey('fishInventory');
+      final hasAquariumFish = data.containsKey('aquariumFish');
+
+      if (!hasInventory) {
+        final owned = List<String>.from(data['ownedFish'] ?? const <String>[]);
+        final inv = <String, int>{};
+        for (final id in owned) {
+          inv[id] = (inv[id] ?? 0) + 1;
+        }
+        await ref.set({'fishInventory': inv}, SetOptions(merge: true));
+        data['fishInventory'] = inv;
+      }
+
+      if (!hasAquariumFish) {
+        await ref.set({'aquariumFish': <String>[]}, SetOptions(merge: true));
+        data['aquariumFish'] = <String>[];
+      }
+
+      return UserProfile.fromFirestore(data, uid);
     });
   }
 
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
     await _db.collection('users').doc(uid).update(data);
+  }
+
+  Future<bool> addFishToAquarium({
+    required String uid,
+    required String fishId,
+  }) async {
+    final userRef = _db.collection('users').doc(uid);
+
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) return false;
+
+      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final inv = Map<String, dynamic>.from(data['fishInventory'] ?? {});
+      final tank = List<String>.from(data['aquariumFish'] ?? const <String>[]);
+
+      final invCount = (inv[fishId] ?? 0) as int;
+      final inTank = tank.where((x) => x == fishId).length;
+      final available = invCount - inTank;
+
+      if (tank.length >= maxAquariumFish) return false;
+      if (available <= 0) return false;
+
+      tank.add(fishId);
+      tx.update(userRef, {'aquariumFish': tank});
+      return true;
+    });
+  }
+
+  Future<bool> removeFishFromAquarium({
+    required String uid,
+    required String fishId,
+  }) async {
+    final userRef = _db.collection('users').doc(uid);
+
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) return false;
+
+      final data = snap.data() ?? {};
+      final tank = List<String>.from(data['aquariumFish'] ?? const <String>[]);
+
+      final idx = tank.lastIndexOf(fishId);
+      if (idx < 0) return false;
+
+      tank.removeAt(idx);
+      tx.update(userRef, {'aquariumFish': tank});
+      return true;
+    });
+  }
+
+  Future<bool> setAquariumFish({
+    required String uid,
+    required List<String> fishIds,
+  }) async {
+    final userRef = _db.collection('users').doc(uid);
+
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) return false;
+
+      final data = snap.data() ?? {};
+      final inv = Map<String, dynamic>.from(data['fishInventory'] ?? {});
+      if (fishIds.length > maxAquariumFish) return false;
+
+      final want = <String, int>{};
+      for (final id in fishIds) {
+        want[id] = (want[id] ?? 0) + 1;
+      }
+
+      for (final e in want.entries) {
+        final invCount = (inv[e.key] ?? 0) as int;
+        if (e.value > invCount) return false;
+      }
+
+      tx.update(userRef, {'aquariumFish': fishIds});
+      return true;
+    });
   }
 
   Future<int> getDeviceServerTimeSkewSeconds({required String uid}) async {
@@ -188,31 +291,37 @@ class FirestoreService {
     required bool isDecoration,
     required bool isFood,
   }) async {
-    final userDoc = await _db.collection('users').doc(uid).get();
-    final data = userDoc.data()!;
-    final currentPoints = data['totalPoints'] ?? 0;
+    final userRef = _db.collection('users').doc(uid);
 
-    if (currentPoints < price) return false;
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) return false;
 
-    final Map<String, dynamic> updates = {
-      'totalPoints': currentPoints - price,
-    };
+      final data = snap.data() ?? {};
+      final currentPoints = (data['totalPoints'] ?? 0) as int;
+      if (currentPoints < price) return false;
 
-    if (isFish) {
-      final ownedFish = List<String>.from(data['ownedFish'] ?? []);
-      ownedFish.add(itemKey);
-      updates['ownedFish'] = ownedFish;
-    } else if (isDecoration) {
-      final ownedDecorations =
-          List<String>.from(data['ownedDecorations'] ?? []);
-      ownedDecorations.add(itemKey);
-      updates['ownedDecorations'] = ownedDecorations;
-    } else if (isFood) {
-      updates['foodStock'] = (data['foodStock'] ?? 0) + 1;
-    }
+      final Map<String, dynamic> updates = {
+        'totalPoints': currentPoints - price,
+      };
 
-    await _db.collection('users').doc(uid).update(updates);
-    return true;
+      if (isFish) {
+        final inv = Map<String, dynamic>.from(data['fishInventory'] ?? {});
+        final current = (inv[itemKey] ?? 0) as int;
+        inv[itemKey] = current + 1;
+        updates['fishInventory'] = inv;
+      } else if (isDecoration) {
+        final ownedDecorations =
+            List<String>.from(data['ownedDecorations'] ?? const []);
+        ownedDecorations.add(itemKey);
+        updates['ownedDecorations'] = ownedDecorations;
+      } else if (isFood) {
+        updates['foodStock'] = ((data['foodStock'] ?? 0) as int) + 1;
+      }
+
+      tx.update(userRef, updates);
+      return true;
+    });
   }
 
   int _calculateLevel(int points) {
@@ -344,6 +453,8 @@ class FirestoreService {
         'currentStreak': profile['currentStreak'] ?? 0,
         'level': profile['level'] ?? 1,
         'ownedFish': profile['ownedFish'] ?? [],
+        'fishInventory': profile['fishInventory'] ?? <String, int>{},
+        'aquariumFish': profile['aquariumFish'] ?? <String>[],
         'ownedDecorations': profile['ownedDecorations'] ?? [],
         'foodStock': profile['foodStock'] ?? 0,
       });
@@ -411,7 +522,7 @@ class FirestoreService {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final data = snap.data() ?? {};
       final currentFood = (data['foodStock'] ?? 0) as int;
       if (currentFood <= 0) return false;
 
