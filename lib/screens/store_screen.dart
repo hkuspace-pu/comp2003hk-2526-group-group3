@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import '../models/user_profile.dart';
 import '../services/firestore_service.dart';
 import '../utils/colors.dart';
@@ -44,7 +45,6 @@ class StoreScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  // Fishes Section
                   _buildSectionTitle('🐠 Fish'),
                   const SizedBox(height: 12),
                   _buildStoreItem(context, 'clownfish'),
@@ -52,18 +52,10 @@ class StoreScreen extends StatelessWidget {
                   _buildStoreItem(context, 'shrimp'),
                   _buildStoreItem(context, 'pufferfish'),
                   const SizedBox(height: 24),
-
-                  // Food Section
                   _buildSectionTitle('🍖 Food'),
                   const SizedBox(height: 12),
                   _buildStoreItem(context, 'food'),
                   const SizedBox(height: 24),
-
-                  // Decorations Section
-                  _buildSectionTitle('🌿 Decorations'),
-                  const SizedBox(height: 12),
-                  _buildStoreItem(context, 'seaweed'),
-                  _buildStoreItem(context, 'coral'),
                 ],
               ),
             ),
@@ -96,11 +88,8 @@ class StoreScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Icon
           Text(item['icon'], style: const TextStyle(fontSize: 40)),
           const SizedBox(width: 16),
-
-          // Name
           Expanded(
             child: Text(
               item['name'],
@@ -111,8 +100,6 @@ class StoreScreen extends StatelessWidget {
               ),
             ),
           ),
-
-          // Price
           Text(
             '${item['price']} 💰',
             style: const TextStyle(
@@ -122,8 +109,6 @@ class StoreScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Buy Button
           ElevatedButton(
             onPressed: () {
               Navigator.push(
