@@ -106,12 +106,14 @@ class _AquariumScreenState extends State<AquariumScreen> {
         final points = profile.totalPoints;
         final foodStock = profile.foodStock;
 
-        final aquariumFishIds = List<String>.from(profile.aquariumFish);
-        final validFishIds = aquariumFishIds
-            .where((id) => FishCatalog.byId(id) != null)
-            .toList();
+        final aquariumFishKeys = List<String>.from(profile.aquariumFish);
 
-        final fishCount = validFishIds.length;
+        final validFishKeys = aquariumFishKeys.where((k) {
+          final parts = k.split('@');
+          return FishCatalog.byId(parts.first) != null;
+        }).toList();
+
+        final fishCount = validFishKeys.length;
 
         final storedHunger = (profile?.hungerPercent ?? 70).toDouble();
         final hungerUpdatedAt = profile?.hungerUpdatedAt;
@@ -123,7 +125,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
             .round()
             .toDouble();
         final renderFishCount =
-            (validFishIds.isNotEmpty ? validFishIds.length : 1);
+            (validFishKeys.isNotEmpty ? validFishKeys.length : 1);
 
         return Scaffold(
           appBar: AppBar(
@@ -195,7 +197,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                 ),
                                 child: Stack(
                                   children: [
-                                    if (validFishIds.isEmpty)
+                                    if (validFishKeys.isEmpty)
                                       Center(
                                         child: Text(
                                           'No fish in tank yet 🐟\nGo to Collection to add fish.',
@@ -212,7 +214,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                       AnimatedAquarium(
                                         controller: _controller,
                                         fishCount: fishCount,
-                                        fishIds: validFishIds,
+                                        fishIds: validFishKeys,
                                         overlayChild: const Stack(
                                           children: [
                                             Positioned.fill(
