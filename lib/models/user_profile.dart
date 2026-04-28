@@ -12,8 +12,10 @@ class UserProfile {
   final List<String> ownedDecorations;
   final int foodStock;
   final DateTime createdAt;
-  final int hungerPercent;
+  final double hungerPercent;
   final DateTime hungerUpdatedAt;
+  final Map<String, int> fishInventory;
+  final List<String> aquariumFish;
 
   UserProfile({
     required this.uid,
@@ -31,6 +33,8 @@ class UserProfile {
     required this.createdAt,
     required this.hungerPercent,
     required this.hungerUpdatedAt,
+    required this.fishInventory,
+    required this.aquariumFish,
   });
 
   factory UserProfile.fromFirestore(Map<String, dynamic> data, String uid) {
@@ -38,6 +42,29 @@ class UserProfile {
     final hungerPercent = (data['hungerPercent'] ?? 100).toDouble();
     final ts = data['hungerUpdatedAt'];
     final hungerUpdatedAt = data['hungerUpdatedAt']?.toDate() ?? createdAt;
+
+    final ownedFish = List<String>.from(data['ownedFish'] ?? const <String>[]);
+    final invRaw = (data['fishInventory'] as Map?)?.cast<String, dynamic>() ??
+        const <String, dynamic>{};
+    final fishInventory = <String, int>{};
+    invRaw.forEach((k, v) {
+      if (v is int) {
+        fishInventory[k] = v;
+      } else if (v is num) {
+        fishInventory[k] = v.toInt();
+      } else {
+        fishInventory[k] = 0;
+      }
+    });
+
+    if (fishInventory.isEmpty && ownedFish.isNotEmpty) {
+      for (final id in ownedFish) {
+        fishInventory[id] = (fishInventory[id] ?? 0) + 1;
+      }
+    }
+
+    final aquariumFish =
+        List<String>.from(data['aquariumFish'] ?? const <String>[]);
 
     return UserProfile(
       uid: uid,
@@ -55,6 +82,8 @@ class UserProfile {
       createdAt: data['createdAt']?.toDate() ?? DateTime.now(),
       hungerPercent: hungerPercent.clamp(0, 100),
       hungerUpdatedAt: hungerUpdatedAt,
+      fishInventory: fishInventory,
+      aquariumFish: aquariumFish,
     );
   }
 
@@ -69,6 +98,8 @@ class UserProfile {
       'currentStreak': currentStreak,
       'level': level,
       'ownedFish': ownedFish,
+      'fishInventory': fishInventory,
+      'aquariumFish': aquariumFish,
       'ownedDecorations': ownedDecorations,
       'foodStock': foodStock,
       'createdAt': createdAt,
@@ -87,8 +118,10 @@ class UserProfile {
     List<String>? ownedFish,
     List<String>? ownedDecorations,
     int? foodStock,
-    int? hungerPercent,
+    double? hungerPercent,
     DateTime? hungerUpdatedAt,
+    Map<String, int>? fishInventory,
+    List<String>? aquariumFish,
   }) {
     return UserProfile(
       uid: uid,
@@ -106,6 +139,8 @@ class UserProfile {
       createdAt: createdAt,
       hungerPercent: hungerPercent ?? this.hungerPercent,
       hungerUpdatedAt: hungerUpdatedAt ?? this.hungerUpdatedAt,
+      fishInventory: fishInventory ?? this.fishInventory,
+      aquariumFish: aquariumFish ?? this.aquariumFish,
     );
   }
 }
