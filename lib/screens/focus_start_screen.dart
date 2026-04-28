@@ -124,7 +124,6 @@ class _FocusStartScreenState extends State<FocusStartScreen> {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryDarkGrey,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),

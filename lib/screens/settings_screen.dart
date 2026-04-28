@@ -169,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 56,
-                child: OutlinedButton.icon(
+                child: ElevatedButton.icon(
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
                     if (context.mounted) {
@@ -188,7 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  style: OutlinedButton.styleFrom(
+                  style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red, width: 2),
                     shape: RoundedRectangleBorder(

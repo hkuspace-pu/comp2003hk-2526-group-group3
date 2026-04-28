@@ -325,7 +325,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                 child: SizedBox(
                   width: double.infinity,
                   height: 56,
-                  child: OutlinedButton.icon(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       showDialog(
                         context: context,
