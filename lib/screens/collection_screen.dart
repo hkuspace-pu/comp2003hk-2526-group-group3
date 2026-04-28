@@ -12,6 +12,16 @@ class CollectionScreen extends StatelessWidget {
   static const String _lockedIcon = '❓';
   static const String _lockedPlaceholder = '???';
 
+  String _k(String fishId, int level) => '$fishId@$level';
+  int _inv(Map<String, int> inv, String fishId, int level) {
+    return inv[_k(fishId, level)] ?? 0;
+  }
+
+  int _tankCount(List<String> tank, String fishId, int level) {
+    final key = _k(fishId, level);
+    return tank.where((x) => x == key).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -26,6 +36,22 @@ class CollectionScreen extends StatelessWidget {
     return StreamBuilder<UserProfile?>(
       stream: firestoreService.getUserProfileStream(user.uid),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Error: ${snapshot.error}')),
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const Scaffold(
+            body: Center(child: Text('No profile data')),
+          );
+        }
+
         final profile = snapshot.data!;
         final inv = profile.fishInventory;
         final tank = profile.aquariumFish;
@@ -34,17 +60,19 @@ class CollectionScreen extends StatelessWidget {
 
         int collectedTypes = 0;
         for (final f in allFish) {
-          if ((inv[f.id] ?? 0) > 0) collectedTypes++;
+          final l1 = _inv(inv, f.id, 1);
+          final l2 = _inv(inv, f.id, 2);
+          if ((l1 + l2) > 0) collectedTypes++;
         }
 
         final sortedFish = [...allFish]..sort((a, b) {
-            final ao = (inv[a.id] ?? 0) > 0;
-            final bo = (inv[b.id] ?? 0) > 0;
-            if (ao == bo) return a.name.compareTo(b.name);
-            return ao ? -1 : 1;
+            final aOwned = (_inv(inv, a.id, 1) + _inv(inv, a.id, 2)) > 0;
+            final bOwned = (_inv(inv, b.id, 1) + _inv(inv, b.id, 2)) > 0;
+            if (aOwned == bOwned) return a.name.compareTo(b.name);
+            return aOwned ? -1 : 1;
           });
 
-        final tankCount = tank.length;
+        final tankCountAll = tank.length;
         const tankMax = FirestoreService.maxAquariumFish;
 
         return Scaffold(
@@ -74,23 +102,31 @@ class CollectionScreen extends StatelessWidget {
                   _buildHeaderSummary(
                     collectedTypes: collectedTypes,
                     totalTypes: totalTypes,
-                    tankCount: tankCount,
+                    tankCount: tankCountAll,
                     tankMax: tankMax,
                   ),
                   const SizedBox(height: 18),
                   _buildSectionTitle('🐠 Fish Collection'),
                   const SizedBox(height: 12),
-                  ...sortedFish.map(
-                    (fish) => _buildCollectionItemCard(
+                  ...sortedFish.map((fish) {
+                    final l1Inv = _inv(inv, fish.id, 1);
+                    final l2Inv = _inv(inv, fish.id, 2);
+                    final tankL1 = _tankCount(tank, fish.id, 1);
+                    final tankL2 = _tankCount(tank, fish.id, 2);
+
+                    return _buildCollectionItemCard(
                       context,
                       firestoreService: firestoreService,
                       uid: user.uid,
                       fish: fish,
-                      invCount: inv[fish.id] ?? 0,
-                      tankCountForThis: tank.where((x) => x == fish.id).length,
+                      l1Inv: l1Inv,
+                      l2Inv: l2Inv,
+                      tankL1: tankL1,
+                      tankL2: tankL2,
+                      tankCountAll: tankCountAll,
                       tankMax: tankMax,
-                    ),
-                  ),
+                    );
+                  }),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -190,18 +226,33 @@ class CollectionScreen extends StatelessWidget {
     required FirestoreService firestoreService,
     required String uid,
     required FishBean fish,
-    required int invCount,
-    required int tankCountForThis,
+    required int l1Inv,
+    required int l2Inv,
+    required int tankL1,
+    required int tankL2,
+    required int tankCountAll,
     required int tankMax,
   }) {
-    final unlocked = invCount > 0;
+    final unlocked = (l1Inv + l2Inv) > 0;
     final displayIcon = unlocked ? fish.icon : _lockedIcon;
     final displayName = unlocked ? fish.name : _lockedPlaceholder;
     final displayDesc = unlocked ? fish.description : _lockedPlaceholder;
 
-    final availableToAdd = invCount - tankCountForThis;
-    final canAdd = unlocked && availableToAdd > 0;
-    final canRemove = tankCountForThis > 0;
+    final freeL1 = (l1Inv - tankL1);
+    final freeL2 = (l2Inv - tankL2);
+
+    final safeFreeL1 = freeL1 < 0 ? 0 : freeL1;
+    final safeFreeL2 = freeL2 < 0 ? 0 : freeL2;
+    final tankNotFull = tankCountAll < tankMax;
+
+    final canAddL1 = unlocked && tankNotFull && safeFreeL1 > 0;
+    final canRemoveL1 = tankL1 > 0;
+
+    final canAddL2 = unlocked && tankNotFull && safeFreeL2 > 0;
+    final canRemoveL2 = tankL2 > 0;
+
+    final canSynth = safeFreeL1 >= 3;
+    final synthTimes = safeFreeL1 ~/ 3;
 
     return InkWell(
       onTap: () => _showDetailDialog(
@@ -210,8 +261,11 @@ class CollectionScreen extends StatelessWidget {
         uid: uid,
         fish: fish,
         unlocked: unlocked,
-        invCount: invCount,
-        tankCountForThis: tankCountForThis,
+        l1Inv: l1Inv,
+        l2Inv: l2Inv,
+        tankL1: tankL1,
+        tankL2: tankL2,
+        tankCountAll: tankCountAll,
         tankMax: tankMax,
       ),
       borderRadius: BorderRadius.circular(12),
@@ -251,13 +305,21 @@ class CollectionScreen extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _chip('INV', invCount.toString(),
+                      _chip('L1', l1Inv.toString(),
                           bg: Colors.white.withValues(alpha: 0.08)),
-                      _chip('TANK', tankCountForThis.toString(),
+                      _chip('L2', l2Inv.toString(),
                           bg: Colors.white.withValues(alpha: 0.08)),
-                      _chip('FREE',
-                          (availableToAdd < 0 ? 0 : availableToAdd).toString(),
+                      _chip('T1', tankL1.toString(),
                           bg: Colors.white.withValues(alpha: 0.08)),
+                      _chip('T2', tankL2.toString(),
+                          bg: Colors.white.withValues(alpha: 0.08)),
+                      _chip('F1', safeFreeL1.toString(),
+                          bg: Colors.white.withValues(alpha: 0.08)),
+                      _chip('F2', safeFreeL2.toString(),
+                          bg: Colors.white.withValues(alpha: 0.08)),
+                      if (canSynth)
+                        _chip('SYN', '$synthTimes×',
+                            bg: Colors.amber.withValues(alpha: 0.16)),
                     ],
                   ),
                 ],
@@ -266,20 +328,72 @@ class CollectionScreen extends StatelessWidget {
             const SizedBox(width: 12),
             Column(
               children: [
-                _iconActionButton(
-                  icon: Icons.add,
-                  enabled: canAdd,
-                  onPressed: () async {
-                    final ok = await firestoreService.addFishToAquarium(
+                _lvlRow(
+                  label: 'L1',
+                  addEnabled: canAddL1,
+                  removeEnabled: canRemoveL1,
+                  onAdd: () async {
+                    final ok = await firestoreService.addFishToAquariumKey(
                       uid: uid,
-                      fishId: fish.id,
+                      fishKey: _k(fish.id, 1),
                     );
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(ok
-                            ? 'Added ${fish.name} to tank ✅'
-                            : 'Cannot add (tank full or no available fish)'),
+                            ? 'Added ${fish.name} L1 to tank ✅'
+                            : 'Cannot add (tank full or no available L1)'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  onRemove: () async {
+                    final ok = await firestoreService.removeFishFromAquariumKey(
+                      uid: uid,
+                      fishKey: _k(fish.id, 1),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok
+                            ? 'Removed ${fish.name} L1 from tank ✅'
+                            : 'Cannot remove (no L1 in tank)'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                _lvlRow(
+                  label: 'L2',
+                  addEnabled: canAddL2,
+                  removeEnabled: canRemoveL2,
+                  onAdd: () async {
+                    final ok = await firestoreService.addFishToAquariumKey(
+                      uid: uid,
+                      fishKey: _k(fish.id, 2),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok
+                            ? 'Added ${fish.name} L2 to tank ✅'
+                            : 'Cannot add (tank full or no available L2)'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  onRemove: () async {
+                    final ok = await firestoreService.removeFishFromAquariumKey(
+                      uid: uid,
+                      fishKey: _k(fish.id, 2),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok
+                            ? 'Removed ${fish.name} L2 from tank ✅'
+                            : 'Cannot remove (no L2 in tank)'),
                         duration: const Duration(seconds: 2),
                       ),
                     );
@@ -287,21 +401,15 @@ class CollectionScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 _iconActionButton(
-                  icon: Icons.remove,
-                  enabled: canRemove,
+                  icon: Icons.auto_fix_high,
+                  enabled: canSynth,
                   onPressed: () async {
-                    final ok = await firestoreService.removeFishFromAquarium(
+                    await _confirmAndSynthesize(
+                      context,
+                      firestoreService: firestoreService,
                       uid: uid,
-                      fishId: fish.id,
-                    );
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(ok
-                            ? 'Removed ${fish.name} from tank ✅'
-                            : 'Cannot remove (not in tank)'),
-                        duration: const Duration(seconds: 2),
-                      ),
+                      fish: fish,
+                      freeL1: safeFreeL1,
                     );
                   },
                 ),
@@ -310,6 +418,48 @@ class CollectionScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _lvlRow({
+    required String label,
+    required bool addEnabled,
+    required bool removeEnabled,
+    required VoidCallback onAdd,
+    required VoidCallback onRemove,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        _iconActionButton(
+          icon: Icons.add,
+          enabled: addEnabled,
+          onPressed: onAdd,
+        ),
+        const SizedBox(width: 6),
+        _iconActionButton(
+          icon: Icons.remove,
+          enabled: removeEnabled,
+          onPressed: onRemove,
+        ),
+      ],
     );
   }
 
@@ -355,25 +505,96 @@ class CollectionScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _confirmAndSynthesize(
+    BuildContext context, {
+    required FirestoreService firestoreService,
+    required String uid,
+    required FishBean fish,
+    required int freeL1,
+  }) async {
+    final canSynth = freeL1 >= 3;
+    if (!canSynth) return;
+
+    final times = freeL1 ~/ 3;
+    final doIt = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Synthesize Fish'),
+        content: Text(
+          'Use 3× Level 1 ${fish.name} to craft 1× Level 2.\n\n'
+          'You can synthesize up to $times time(s) now.\n'
+          'Proceed with 1 synthesis?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('SYNTHESIZE'),
+          ),
+        ],
+      ),
+    );
+
+    if (doIt != true) return;
+
+    final ok = await firestoreService.synthesizeFish(
+      uid: uid,
+      fishId: fish.id,
+      fromLevel: 1,
+      toLevel: 2,
+      cost: 3,
+    );
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Synthesized ${fish.name}: 3×L1 → 1×L2 ✨'
+              : 'Synthesis failed (not enough FREE L1)',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _showDetailDialog(
     BuildContext context, {
     required FirestoreService firestoreService,
     required String uid,
     required FishBean fish,
     required bool unlocked,
-    required int invCount,
-    required int tankCountForThis,
+    required int l1Inv,
+    required int l2Inv,
+    required int tankL1,
+    required int tankL2,
+    required int tankCountAll,
     required int tankMax,
   }) {
     final rootContext = context;
 
     final titleIcon = unlocked ? fish.icon : _lockedIcon;
     final titleName = unlocked ? fish.name : _lockedPlaceholder;
-    final availableToAddRaw = invCount - tankCountForThis;
-    final availableToAdd = availableToAddRaw < 0 ? 0 : availableToAddRaw;
 
-    final canAdd = unlocked && availableToAdd > 0;
-    final canRemove = tankCountForThis > 0;
+    final freeL1 = l1Inv - tankL1;
+    final freeL2 = l2Inv - tankL2;
+
+    final safeFreeL1 = freeL1 < 0 ? 0 : freeL1;
+    final safeFreeL2 = freeL2 < 0 ? 0 : freeL2;
+    final tankNotFull = tankCountAll < tankMax;
+
+    final canAddL1 = unlocked && tankNotFull && safeFreeL1 > 0;
+    final canRemoveL1 = tankL1 > 0;
+
+    final canAddL2 = unlocked && tankNotFull && safeFreeL2 > 0;
+    final canRemoveL2 = tankL2 > 0;
+
+    final canSynth = safeFreeL1 >= 3;
+    final synthTimes = safeFreeL1 ~/ 3;
 
     showDialog(
       context: rootContext,
@@ -392,11 +613,22 @@ class CollectionScreen extends StatelessWidget {
             children: [
               Text(unlocked ? fish.description : _lockedPlaceholder),
               const SizedBox(height: 14),
-              Text('Inventory: $invCount'),
-              Text('In tank: $tankCountForThis'),
-              Text('Available: $availableToAdd'),
-              const SizedBox(height: 8),
-              Text('Tank capacity: $tankMax'),
+              Text('Inventory L1: $l1Inv'),
+              const SizedBox(height: 6),
+              Text('In tank L1: $tankL1'),
+              Text('In tank L2: $tankL2'),
+              const SizedBox(height: 6),
+              Text('FREE L1: $safeFreeL1'),
+              Text('FREE L2: $safeFreeL2'),
+              const SizedBox(height: 10),
+              Text('Tank: $tankCountAll/$tankMax'),
+              const SizedBox(height: 10),
+              Text(
+                canSynth
+                    ? 'Synthesize available: $synthTimes time(s) (3×L1 → 1×L2)'
+                    : 'Need 3× FREE L1 to synthesize 1× L2.',
+                style: const TextStyle(fontSize: 12),
+              ),
               if (!unlocked) ...[
                 const SizedBox(height: 12),
                 const Text(
@@ -408,11 +640,12 @@ class CollectionScreen extends StatelessWidget {
           ),
           actions: [
             TextButton(
-              onPressed: canRemove
+              onPressed: canRemoveL1
                   ? () async {
-                      final ok = await firestoreService.removeFishFromAquarium(
+                      final ok =
+                          await firestoreService.removeFishFromAquariumKey(
                         uid: uid,
-                        fishId: fish.id,
+                        fishKey: _k(fish.id, 1),
                       );
                       if (!dialogContext.mounted) return;
                       Navigator.pop(dialogContext);
@@ -420,22 +653,22 @@ class CollectionScreen extends StatelessWidget {
                         SnackBar(
                           content: Text(
                             ok
-                                ? 'Removed ${fish.name} from tank ✅'
-                                : 'Cannot remove (not in tank)',
+                                ? 'Removed ${fish.name} L1 from tank ✅'
+                                : 'Cannot remove L1 (not in tank)',
                           ),
                           duration: const Duration(seconds: 2),
                         ),
                       );
                     }
                   : null,
-              child: const Text('Remove from Tank'),
+              child: const Text('Remove L1 from Tank'),
             ),
             TextButton(
-              onPressed: canAdd
+              onPressed: canAddL1
                   ? () async {
-                      final ok = await firestoreService.addFishToAquarium(
+                      final ok = await firestoreService.addFishToAquariumKey(
                         uid: uid,
-                        fishId: fish.id,
+                        fishKey: _k(fish.id, 1),
                       );
 
                       if (!dialogContext.mounted) return;
@@ -446,15 +679,73 @@ class CollectionScreen extends StatelessWidget {
                         SnackBar(
                           content: Text(
                             ok
-                                ? 'Added ${fish.name} to tank ✅'
-                                : 'Cannot add (tank full or no available fish)',
+                                ? 'Added ${fish.name} L1 to tank ✅'
+                                : 'Cannot add L1 (tank full or no available fish)',
                           ),
                           duration: const Duration(seconds: 2),
                         ),
                       );
                     }
                   : null,
-              child: const Text('Add to Tank'),
+              child: const Text('Add to L1 Tank'),
+            ),
+            TextButton(
+              onPressed: canRemoveL2
+                  ? () async {
+                      final ok =
+                          await firestoreService.removeFishFromAquariumKey(
+                        uid: uid,
+                        fishKey: _k(fish.id, 2),
+                      );
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(rootContext).showSnackBar(
+                        SnackBar(
+                          content: Text(ok
+                              ? 'Removed ${fish.name} L2 from tank ✅'
+                              : 'Cannot remove L2'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  : null,
+              child: const Text('Remove L2 from Tank'),
+            ),
+            TextButton(
+              onPressed: canAddL2
+                  ? () async {
+                      final ok = await firestoreService.addFishToAquariumKey(
+                        uid: uid,
+                        fishKey: _k(fish.id, 2),
+                      );
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(rootContext).showSnackBar(
+                        SnackBar(
+                          content: Text(ok
+                              ? 'Added ${fish.name} L2 to tank ✅'
+                              : 'Cannot add L2'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  : null,
+              child: const Text('Add L2 to Tank'),
+            ),
+            TextButton(
+              onPressed: canSynth
+                  ? () async {
+                      Navigator.pop(dialogContext);
+                      await _confirmAndSynthesize(
+                        rootContext,
+                        firestoreService: firestoreService,
+                        uid: uid,
+                        fish: fish,
+                        freeL1: safeFreeL1,
+                      );
+                    }
+                  : null,
+              child: const Text('Synthesize (3→1)'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
