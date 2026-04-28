@@ -23,7 +23,7 @@ class StoreScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Aquarium Shop'),
+            title: const Text('Aquarium Store'),
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 16),
