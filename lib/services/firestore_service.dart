@@ -7,6 +7,46 @@ import '../models/user_profile.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   static const int maxAquariumFish = 10;
+  static String fishKey(String fishId, int level) => '$fishId@$level';
+  static bool _isLeveledKey(String key) => key.contains('@');
+
+  static (String id, int level) parseFishKey(String key) {
+    final parts = key.split('@');
+    final id = parts.first;
+    final level = parts.length > 1 ? int.tryParse(parts[1]) ?? 1 : 1;
+    return (id, level);
+  }
+
+  static Map<String, int> normalizeFishInventory(Map<String, dynamic> raw) {
+    final out = <String, int>{};
+
+    raw.forEach((k, v) {
+      final n = (v is int) ? v : (v is num ? v.toInt() : 0);
+      if (n <= 0) return;
+
+      if (_isLeveledKey(k)) {
+        out[k] = (out[k] ?? 0) + n;
+      } else {
+        final lk = fishKey(k, 1);
+        out[lk] = (out[lk] ?? 0) + n;
+      }
+    });
+
+    return out;
+  }
+
+  static List<String> normalizeAquariumFish(List<dynamic> raw) {
+    final out = <String>[];
+    for (final x in raw) {
+      if (x is! String) continue;
+      if (_isLeveledKey(x)) {
+        out.add(x);
+      } else {
+        out.add(fishKey(x, 1));
+      }
+    }
+    return out;
+  }
 
   Future<void> createUserProfile({
     required String uid,
@@ -22,16 +62,16 @@ class FirestoreService {
       'activityCount': 0,
       'currentStreak': 0,
       'level': 1,
-      'ownedFish': [],
+      'ownedFish': <String>[],
       'fishInventory': <String, int>{},
       'aquariumFish': <String>[],
-      'ownedDecorations': [],
+      'ownedDecorations': <String>[],
       'foodStock': 0,
       'lastActiveDate': null,
       'hungerPercent': 70.0,
       'hungerUpdatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
   }
 
   Future<UserProfile?> getUserProfile(String uid) async {
@@ -45,24 +85,45 @@ class FirestoreService {
 
     return ref.snapshots().asyncMap((doc) async {
       if (!doc.exists) return null;
-
       final data = doc.data()!;
-      final hasInventory = data.containsKey('fishInventory');
-      final hasAquariumFish = data.containsKey('aquariumFish');
+      bool needWriteBack = false;
 
-      if (!hasInventory) {
+      if (!data.containsKey('fishInventory')) {
         final owned = List<String>.from(data['ownedFish'] ?? const <String>[]);
         final inv = <String, int>{};
         for (final id in owned) {
-          inv[id] = (inv[id] ?? 0) + 1;
+          final k1 = fishKey(id, 1);
+          inv[k1] = (inv[k1] ?? 0) + 1;
         }
-        await ref.set({'fishInventory': inv}, SetOptions(merge: true));
         data['fishInventory'] = inv;
+        needWriteBack = true;
+      } else {
+        final rawInv = Map<String, dynamic>.from(data['fishInventory'] ?? {});
+        final normalizedInv = normalizeFishInventory(rawInv);
+        final hasLegacyKey = rawInv.keys.any((k) => !_isLeveledKey(k));
+        if (hasLegacyKey || rawInv.length != normalizedInv.length) {
+          data['fishInventory'] = normalizedInv;
+          needWriteBack = true;
+        }
       }
 
-      if (!hasAquariumFish) {
-        await ref.set({'aquariumFish': <String>[]}, SetOptions(merge: true));
+      if (!data.containsKey('aquariumFish')) {
         data['aquariumFish'] = <String>[];
+        needWriteBack = true;
+      } else {
+        final rawTank = List<dynamic>.from(data['aquariumFish'] ?? const []);
+        final normalizedTank = normalizeAquariumFish(rawTank);
+        if (rawTank.whereType<String>().join(',') != normalizedTank.join(',')) {
+          data['aquariumFish'] = normalizedTank;
+          needWriteBack = true;
+        }
+      }
+
+      if (needWriteBack) {
+        await ref.set({
+          'fishInventory': data['fishInventory'],
+          'aquariumFish': data['aquariumFish'],
+        }, SetOptions(merge: true));
       }
 
       return UserProfile.fromFirestore(data, uid);
@@ -73,9 +134,9 @@ class FirestoreService {
     await _db.collection('users').doc(uid).update(data);
   }
 
-  Future<bool> addFishToAquarium({
+  Future<bool> addFishToAquariumKey({
     required String uid,
-    required String fishId,
+    required String fishKey,
   }) async {
     final userRef = _db.collection('users').doc(uid);
 
@@ -84,42 +145,64 @@ class FirestoreService {
       if (!snap.exists) return false;
 
       final data = snap.data() as Map<String, dynamic>? ?? {};
-      final inv = Map<String, dynamic>.from(data['fishInventory'] ?? {});
-      final tank = List<String>.from(data['aquariumFish'] ?? const <String>[]);
+      final inv = normalizeFishInventory(
+        Map<String, dynamic>.from(data['fishInventory'] ?? {}),
+      );
+      final tank = normalizeAquariumFish(
+        List<dynamic>.from(data['aquariumFish'] ?? const []),
+      );
 
-      final invCount = (inv[fishId] ?? 0) as int;
-      final inTank = tank.where((x) => x == fishId).length;
+      final invCount = inv[fishKey] ?? 0;
+      final inTank = tank.where((x) => x == fishKey).length;
       final available = invCount - inTank;
 
       if (tank.length >= maxAquariumFish) return false;
       if (available <= 0) return false;
 
-      tank.add(fishId);
-      tx.update(userRef, {'aquariumFish': tank});
+      tank.add(fishKey);
+      tx.update(userRef, {
+        'aquariumFish': tank,
+        'fishInventory': inv,
+      });
       return true;
     });
   }
 
-  Future<bool> removeFishFromAquarium({
+  Future<bool> removeFishFromAquariumKey({
     required String uid,
-    required String fishId,
+    required String fishKey,
   }) async {
     final userRef = _db.collection('users').doc(uid);
-
     return _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() ?? {};
-      final tank = List<String>.from(data['aquariumFish'] ?? const <String>[]);
+      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final tank = normalizeAquariumFish(
+        List<dynamic>.from(data['aquariumFish'] ?? const []),
+      );
 
-      final idx = tank.lastIndexOf(fishId);
+      final idx = tank.lastIndexOf(fishKey);
       if (idx < 0) return false;
 
       tank.removeAt(idx);
       tx.update(userRef, {'aquariumFish': tank});
       return true;
     });
+  }
+
+  Future<bool> addFishToAquarium({
+    required String uid,
+    required String fishId,
+  }) {
+    return addFishToAquariumKey(uid: uid, fishKey: fishKey(fishId, 1));
+  }
+
+  Future<bool> removeFishFromAquarium({
+    required String uid,
+    required String fishId,
+  }) {
+    return removeFishFromAquariumKey(uid: uid, fishKey: fishKey(fishId, 1));
   }
 
   Future<bool> setAquariumFish({
@@ -132,21 +215,27 @@ class FirestoreService {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() ?? {};
-      final inv = Map<String, dynamic>.from(data['fishInventory'] ?? {});
-      if (fishIds.length > maxAquariumFish) return false;
+      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final inv = normalizeFishInventory(
+        Map<String, dynamic>.from(data['fishInventory'] ?? {}),
+      );
+      final tank = normalizeAquariumFish(List<dynamic>.from(fishIds));
+      if (tank.length > maxAquariumFish) return false;
 
       final want = <String, int>{};
-      for (final id in fishIds) {
-        want[id] = (want[id] ?? 0) + 1;
+      for (final k in tank) {
+        want[k] = (want[k] ?? 0) + 1;
       }
 
       for (final e in want.entries) {
-        final invCount = (inv[e.key] ?? 0) as int;
+        final invCount = inv[e.key] ?? 0;
         if (e.value > invCount) return false;
       }
 
-      tx.update(userRef, {'aquariumFish': fishIds});
+      tx.update(userRef, {
+        'aquariumFish': tank,
+        'fishInventory': inv,
+      });
       return true;
     });
   }
@@ -205,8 +294,10 @@ class FirestoreService {
         'activityCount': 0,
         'currentStreak': 0,
         'level': 1,
-        'ownedFish': [],
-        'ownedDecorations': [],
+        'ownedFish': <String>[],
+        'fishInventory': <String, int>{},
+        'aquariumFish': <String>[],
+        'ownedDecorations': <String>[],
         'foodStock': 0,
         'lastActiveDate': null,
         'hungerPercent': 70.0,
@@ -297,22 +388,24 @@ class FirestoreService {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() ?? {};
+      final data = snap.data() as Map<String, dynamic>? ?? {};
       final currentPoints = (data['totalPoints'] ?? 0) as int;
       if (currentPoints < price) return false;
 
-      final Map<String, dynamic> updates = {
+      final updates = <String, dynamic>{
         'totalPoints': currentPoints - price,
       };
 
       if (isFish) {
-        final inv = Map<String, dynamic>.from(data['fishInventory'] ?? {});
-        final current = (inv[itemKey] ?? 0) as int;
-        inv[itemKey] = current + 1;
+        final inv = normalizeFishInventory(
+          Map<String, dynamic>.from(data['fishInventory'] ?? {}),
+        );
+        final k1 = fishKey(itemKey, 1);
+        inv[k1] = (inv[k1] ?? 0) + 1;
         updates['fishInventory'] = inv;
       } else if (isDecoration) {
         final ownedDecorations =
-            List<String>.from(data['ownedDecorations'] ?? const []);
+            List<String>.from(data['ownedDecorations'] ?? const <String>[]);
         ownedDecorations.add(itemKey);
         updates['ownedDecorations'] = ownedDecorations;
       } else if (isFood) {
@@ -445,6 +538,9 @@ class FirestoreService {
     final activities = data['activities'] as List<dynamic>?;
 
     if (profile != null) {
+      final invRaw = Map<String, dynamic>.from(profile['fishInventory'] ?? {});
+      final inv = normalizeFishInventory(invRaw);
+
       await _db.collection('users').doc(uid).update({
         'totalPoints': profile['totalPoints'] ?? 0,
         'totalFocusMinutes': profile['totalFocusMinutes'] ?? 0,
@@ -453,7 +549,7 @@ class FirestoreService {
         'currentStreak': profile['currentStreak'] ?? 0,
         'level': profile['level'] ?? 1,
         'ownedFish': profile['ownedFish'] ?? [],
-        'fishInventory': profile['fishInventory'] ?? <String, int>{},
+        'fishInventory': inv,
         'aquariumFish': profile['aquariumFish'] ?? <String>[],
         'ownedDecorations': profile['ownedDecorations'] ?? [],
         'foodStock': profile['foodStock'] ?? 0,
@@ -509,6 +605,8 @@ class FirestoreService {
       'currentStreak': 0,
       'level': 1,
       'ownedFish': [],
+      'fishInventory': <String, int>{},
+      'aquariumFish': <String>[],
       'ownedDecorations': [],
       'foodStock': 0,
       'lastActiveDate': null,
@@ -543,6 +641,44 @@ class FirestoreService {
         'hungerUpdatedAt': FieldValue.serverTimestamp(),
       });
 
+      return true;
+    });
+  }
+
+  Future<bool> synthesizeFish({
+    required String uid,
+    required String fishId,
+    int fromLevel = 1,
+    int toLevel = 2,
+    int cost = 3,
+  }) async {
+    final userRef = _db.collection('users').doc(uid);
+
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) return false;
+
+      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final inv = normalizeFishInventory(
+        Map<String, dynamic>.from(data['fishInventory'] ?? {}),
+      );
+      final tank = normalizeAquariumFish(
+        List<dynamic>.from(data['aquariumFish'] ?? const []),
+      );
+
+      final fromKey = fishKey(fishId, fromLevel);
+      final toKey = fishKey(fishId, toLevel);
+
+      final invCount = inv[fromKey] ?? 0;
+      final inTank = tank.where((x) => x == fromKey).length;
+      final available = invCount - inTank;
+
+      if (available < cost) return false;
+
+      inv[fromKey] = invCount - cost;
+      inv[toKey] = (inv[toKey] ?? 0) + 1;
+
+      tx.update(userRef, {'fishInventory': inv});
       return true;
     });
   }
