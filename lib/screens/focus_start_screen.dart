@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
@@ -12,7 +13,7 @@ class FocusStartScreen extends StatefulWidget {
 }
 
 class _FocusStartScreenState extends State<FocusStartScreen> {
-  int _selectedTime = 25; // Default 25 minutes
+  int _selectedTime = 25;
   final TextEditingController _customTimeController = TextEditingController();
 
   @override
@@ -41,8 +42,6 @@ class _FocusStartScreenState extends State<FocusStartScreen> {
                   child: Column(
                     children: [
                       const SizedBox(height: 40),
-
-                      // Title
                       const Text(
                         'Select Duration',
                         style: TextStyle(
@@ -52,8 +51,6 @@ class _FocusStartScreenState extends State<FocusStartScreen> {
                         ),
                       ),
                       const SizedBox(height: 32),
-
-                      // Time Selection Buttons
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: AppConstants.focusTimes.map((time) {
@@ -61,8 +58,6 @@ class _FocusStartScreenState extends State<FocusStartScreen> {
                         }).toList(),
                       ),
                       const SizedBox(height: 40),
-
-                      // Custom Time
                       const Text(
                         'Custom Time',
                         style: TextStyle(
@@ -114,8 +109,6 @@ class _FocusStartScreenState extends State<FocusStartScreen> {
                         ),
                       ),
                       const SizedBox(height: 60),
-
-                      // Start Button
                       SizedBox(
                         width: double.infinity,
                         height: 60,
@@ -136,9 +129,9 @@ class _FocusStartScreenState extends State<FocusStartScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: Row(
+                          child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
+                            children: [
                               Icon(Icons.play_circle_filled, size: 28),
                               SizedBox(width: 12),
                               Text(
