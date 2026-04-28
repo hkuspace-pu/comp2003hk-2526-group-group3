@@ -40,7 +40,6 @@ class UserProfile {
   factory UserProfile.fromFirestore(Map<String, dynamic> data, String uid) {
     final createdAt = data['createdAt']?.toDate() ?? DateTime.now();
     final hungerPercent = (data['hungerPercent'] ?? 100).toDouble();
-    final ts = data['hungerUpdatedAt'];
     final hungerUpdatedAt = data['hungerUpdatedAt']?.toDate() ?? createdAt;
 
     final ownedFish = List<String>.from(data['ownedFish'] ?? const <String>[]);

@@ -3,7 +3,6 @@ import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 import 'data_management_screen.dart';
 import 'help_screen.dart';
-import 'splash_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 
@@ -337,42 +336,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
         Navigator.pop(context);
       },
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.primaryDarkGrey,
-        title: const Text(
-          'Logout',
-          style: TextStyle(color: AppColors.textWhite),
-        ),
-        content: const Text(
-          'Are you sure you want to logout?',
-          style: TextStyle(color: AppColors.textGrey),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => const SplashScreen(),
-                ),
-              );
-            },
-            child: const Text(
-              'Logout',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

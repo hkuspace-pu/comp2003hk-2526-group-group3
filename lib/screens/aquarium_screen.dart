@@ -115,8 +115,8 @@ class _AquariumScreenState extends State<AquariumScreen> {
 
         final fishCount = validFishKeys.length;
 
-        final storedHunger = (profile?.hungerPercent ?? 70).toDouble();
-        final hungerUpdatedAt = profile?.hungerUpdatedAt;
+        final storedHunger = (profile.hungerPercent).toDouble();
+        final hungerUpdatedAt = profile.hungerUpdatedAt;
         final hungerPercent = _firestoreService
             .computeCurrentHungerPercent(
               storedPercent: storedHunger,
@@ -124,8 +124,6 @@ class _AquariumScreenState extends State<AquariumScreen> {
             )
             .round()
             .toDouble();
-        final renderFishCount =
-            (validFishKeys.isNotEmpty ? validFishKeys.length : 1);
 
         return Scaffold(
           appBar: AppBar(

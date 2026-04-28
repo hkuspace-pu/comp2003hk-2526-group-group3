@@ -238,14 +238,4 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
       ),
     );
   }
-
-  ButtonStyle _storeButtonStyle({double opacity = 1.0}) {
-    return ElevatedButton.styleFrom(
-      backgroundColor: AppColors.primaryDarkGrey.withValues(alpha: opacity),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-    );
-  }
 }

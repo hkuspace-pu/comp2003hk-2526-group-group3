@@ -289,37 +289,6 @@ class _DashboardHome extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildWideActionCard(
-    BuildContext context, {
-    required String label,
-    required VoidCallback onTap,
-    double height = 84,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: double.infinity,
-        height: height,
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textWhite,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _FocusTab extends StatelessWidget {

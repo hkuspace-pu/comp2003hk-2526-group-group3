@@ -144,7 +144,7 @@ class FirestoreService {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final data = snap.data() ?? {};
       final inv = normalizeFishInventory(
         Map<String, dynamic>.from(data['fishInventory'] ?? {}),
       );
@@ -177,7 +177,7 @@ class FirestoreService {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final data = snap.data() ?? {};
       final tank = normalizeAquariumFish(
         List<dynamic>.from(data['aquariumFish'] ?? const []),
       );
@@ -215,7 +215,7 @@ class FirestoreService {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final data = snap.data() ?? {};
       final inv = normalizeFishInventory(
         Map<String, dynamic>.from(data['fishInventory'] ?? {}),
       );
@@ -388,7 +388,7 @@ class FirestoreService {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final data = snap.data() ?? {};
       final currentPoints = (data['totalPoints'] ?? 0) as int;
       if (currentPoints < price) return false;
 
@@ -658,7 +658,7 @@ class FirestoreService {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
 
-      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final data = snap.data() ?? {};
       final inv = normalizeFishInventory(
         Map<String, dynamic>.from(data['fishInventory'] ?? {}),
       );
