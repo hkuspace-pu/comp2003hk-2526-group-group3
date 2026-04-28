@@ -1,14 +1,14 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
-import '../services/firestore_service.dart';
 import 'share_preview_screen.dart';
 
 class AddActivityScreen extends StatefulWidget {
@@ -267,18 +267,24 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _saveActivity,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentOrange,
+                      backgroundColor: AppColors.primaryDarkGrey,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isSaving
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'SAVE ACTIVITY',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(width: 12),
+                        Text(
+                          'SUBMIT ACTIVITY',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
