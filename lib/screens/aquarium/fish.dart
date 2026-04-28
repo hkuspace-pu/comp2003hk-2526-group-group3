@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
+
 import 'fish_types.dart';
 
 class Fish {
@@ -79,9 +81,7 @@ class Fish {
     }
 
     final baseSize = rng.nextDouble() * 1.1 + 0.7;
-    final scale = (1 << (level - 1)).toDouble();
-    final freq = rng.nextDouble() * 1.3 + 0.6;
-    final amp = rng.nextDouble() * 0.22 + 0.12;
+    final scale = 1.0;
 
     final w = bounds?.width ?? 360;
     final h = bounds?.height ?? 220;
@@ -92,23 +92,22 @@ class Fish {
     );
 
     final dir = rng.nextBool() ? 1 : -1;
-    final baseY = initPos.dy;
 
     return Fish(
       fish: fish,
       pos: initPos,
       speed: speed,
       dir: dir,
-      wiggleAmp: amp,
-      wiggleFreq: freq,
+      wiggleAmp: rng.nextDouble() * 0.22 + 0.12,
+      wiggleFreq: rng.nextDouble() * 1.3 + 0.6,
       size: baseSize * scale,
       bodyColor: color,
       level: level,
       rng: myRng,
-      baseYTarget: baseY,
+      baseYTarget: initPos.dy,
       baseYVel: 0,
       retargetIn: myRng.nextDouble() * 3 + 2,
-      baseY: baseY,
+      baseY: initPos.dy,
       bobAmp: 5.0,
       bobFreq: 1.6,
       bobPhase: rng.nextDouble() * pi * 2,
@@ -117,7 +116,10 @@ class Fish {
   }
 
   void update(double dt, Size bounds) {
-    const marginX = 24.0;
+    final fishHalfWidth = (56.0 * size) / 2;
+    final tiltExtra = fishHalfWidth * 0.15;
+    final marginX = fishHalfWidth + tiltExtra + 6;
+
     final left = marginX;
     final right = bounds.width - marginX;
 
@@ -140,28 +142,24 @@ class Fish {
     if (retargetIn <= 0) {
       final maxStep = (bottomLimit - topLimit) * 0.22;
       final delta = (rng.nextDouble() * 2 - 1) * maxStep;
-
-      baseYTarget = (baseYTarget + delta)
-          .clamp(topLimit + 10, bottomLimit - 10)
-          .toDouble();
+      baseYTarget =
+          (baseYTarget + delta).clamp(topLimit + 10, bottomLimit - 10);
       retargetIn = rng.nextDouble() * 3 + 2;
     }
-
-    const smoothTime = 1.2;
-    const maxVerticalSpeed = 80.0;
 
     baseY = _smoothDamp(
       baseY,
       baseYTarget,
-      smoothTime,
+      1.2,
       dt,
-      maxVerticalSpeed,
+      80.0,
       (v) => baseYVel = v,
       baseYVel,
     );
+
+    swimT += dt;
     final y = (baseY + sin(swimT * bobFreq + bobPhase) * bobAmp)
-        .clamp(topLimit, bottomLimit)
-        .toDouble();
+        .clamp(topLimit, bottomLimit);
 
     pos = Offset(x, y);
   }
@@ -175,60 +173,156 @@ class Fish {
     void Function(double v) setVelocity,
     double currentVelocity,
   ) {
-    smoothTime = smoothTime < 0.0001 ? 0.0001 : smoothTime;
-
     final omega = 2.0 / smoothTime;
     final x = omega * dt;
     final exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x);
 
     var change = current - target;
-    final originalTarget = target;
+
     final maxChange = maxSpeed * smoothTime;
     change = change.clamp(-maxChange, maxChange);
-    target = current - change;
-
     final temp = (currentVelocity + omega * change) * dt;
-    final newVel = (currentVelocity - omega * temp) * exp;
-
-    var output = target + (change + temp) * exp;
-    final origMinusCurrent = originalTarget - current;
-    final outMinusOrig = output - originalTarget;
-    if (origMinusCurrent > 0.0 == outMinusOrig > 0.0) {
-      output = originalTarget;
-      setVelocity(0.0);
-      return output;
-    }
-    setVelocity(newVel);
-    return output;
+    setVelocity((currentVelocity - omega * temp) * exp);
+    return target + (change + temp) * exp;
   }
 
   void draw(Canvas canvas, double time) {
+    final double speedFactor = (speed / 120).clamp(0.0, 1.0);
+    final double tilt = speedFactor * 0.10 * dir;
+
+    canvas.save();
+    canvas.translate(pos.dx, pos.dy);
+    canvas.rotate(tilt);
+    canvas.translate(-pos.dx, -pos.dy);
+
     if (sprite != null) {
       _drawSprite(canvas, time);
     } else {
       _drawFallbackVector(canvas, time);
     }
-    _drawUpgradeBadge(canvas);
+
+    canvas.restore();
+
+    if (level >= 2) {
+      _drawLevelBadge(canvas);
+    }
   }
 
-  void _drawUpgradeBadge(Canvas canvas) {
-    String? badge;
-    if (level == 2) badge = '✨';
-    if (level == 3) badge = '⭐';
-    if (level >= 4) badge = '🌟';
-    if (badge == null) return;
+  void _drawLevelBadge(Canvas canvas) {
+    final bool facingLeft = dir < 0;
+    final headX = facingLeft ? pos.dx - size * 28 : pos.dx + size * 28;
+    final headY = pos.dy - size * 18;
 
-    final tp = TextPainter(
-      text: TextSpan(
-        text: badge,
-        style: TextStyle(fontSize: 18 * size),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    final pulse = (sin(swimT * 4) + 1) * 0.5;
+    final glowScale = 0.8 + pulse * 0.4;
+    final glowAlpha = 0.55 + pulse * 0.45;
+    final rotation = swimT * 0.6 * (facingLeft ? -1 : 1);
 
+    final baseSize = size * 6;
+
+    if (level == 2) {
+      _drawStarAnimated(
+        canvas,
+        Offset(headX, headY),
+        baseSize,
+        rotation,
+        glowScale,
+        Colors.amber.withOpacity(glowAlpha),
+      );
+    } else if (level == 3) {
+      _drawStarAnimated(
+        canvas,
+        Offset(headX - baseSize * 0.7, headY),
+        baseSize * 0.85,
+        rotation,
+        glowScale,
+        const Color(0xFFFF9F1C).withOpacity(glowAlpha),
+      );
+      _drawStarAnimated(
+        canvas,
+        Offset(headX + baseSize * 0.7, headY),
+        baseSize * 0.85,
+        rotation,
+        glowScale,
+        const Color(0xFFFF9F1C).withOpacity(glowAlpha),
+      );
+    } else if (level >= 4) {
+      _drawCrownAnimated(
+        canvas,
+        Offset(headX, headY),
+        baseSize * (1.1 + pulse * 0.25),
+        glowAlpha,
+      );
+    }
+  }
+
+  void _drawStarAnimated(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    double rotation,
+    double scale,
+    Color color,
+  ) {
     canvas.save();
-    canvas.translate(pos.dx + 10 * size, pos.dy - 18 * size);
-    tp.paint(canvas, Offset.zero);
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(rotation);
+    canvas.scale(scale);
+
+    final path = Path();
+    for (int i = 0; i < 8; i++) {
+      final a = pi / 4 * i;
+      final r = i.isEven ? radius : radius * 0.45;
+      final p = Offset(cos(a) * r, sin(a) * r);
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
+    }
+    path.close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..isAntiAlias = true,
+    );
+    canvas.restore();
+  }
+
+  void _drawCrownAnimated(Canvas canvas, Offset c, double s, double alpha) {
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+
+    final w = s;
+    final h = s * 0.7;
+
+    final path = Path()
+      ..moveTo(-w * 0.5, h * 0.25)
+      ..lineTo(-w * 0.3, -h * 0.2)
+      ..lineTo(0, -h * 0.5)
+      ..lineTo(w * 0.3, -h * 0.2)
+      ..lineTo(w * 0.5, h * 0.25)
+      ..close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = LinearGradient(
+          colors: [
+            const Color(0xFFFFF3C0).withOpacity(alpha),
+            const Color(0xFFFFB300).withOpacity(alpha),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(Rect.fromCenter(
+          center: Offset.zero,
+          width: w,
+          height: h,
+        ))
+        ..isAntiAlias = true,
+    );
     canvas.restore();
   }
 
@@ -237,35 +331,16 @@ class Fish {
     final len = 56.0 * size;
     final height = 28.0 * size;
 
-    final wiggle = sin(time * 2 * pi * wiggleFreq) * wiggleAmp;
-
     canvas.save();
     canvas.translate(pos.dx, pos.dy);
+    if (dir > 0) canvas.scale(-1, 1);
 
-    canvas.rotate(wiggle * 0.12);
-
-    final facingLeft = dir > 0;
-    if (facingLeft) {
-      canvas.scale(-1, 1);
-    }
-
-    final dst = Rect.fromCenter(
-      center: const Offset(0, 0),
-      width: len,
-      height: height,
+    canvas.drawImageRect(
+      img,
+      Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+      Rect.fromCenter(center: Offset.zero, width: len, height: height),
+      Paint(),
     );
-    final src = Rect.fromLTWH(
-      0,
-      0,
-      img.width.toDouble(),
-      img.height.toDouble(),
-    );
-
-    final paint = Paint()
-      ..isAntiAlias = true
-      ..filterQuality = FilterQuality.high;
-
-    canvas.drawImageRect(img, src, dst, paint);
     canvas.restore();
   }
 

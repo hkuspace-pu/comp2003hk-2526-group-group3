@@ -104,7 +104,22 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
     final oldIds = oldWidget.fishIds?.join(',') ?? '';
     final newIds = widget.fishIds?.join(',') ?? '';
 
-    if (oldWidget.fishCount != widget.fishCount || oldIds != newIds) {
+    final shouldRebuild =
+        oldWidget.fishCount != widget.fishCount || oldIds != newIds;
+
+    final turnedOnSprites = widget.useSprites && !oldWidget.useSprites;
+
+    if (turnedOnSprites && !_spritesRequested) {
+      _spritesRequested = true;
+      _loadSprites().then((_) {
+        for (final f in _fishes) {
+          _attachSprite(f);
+        }
+        if (mounted) setState(() {});
+      });
+    }
+
+    if (shouldRebuild) {
       _rebuildSchool();
       setState(() {});
     }
@@ -114,6 +129,13 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
   void dispose() {
     _ticker.dispose();
     super.dispose();
+  }
+
+  (String id, int level) _parseKey(String key) {
+    final parts = key.split('@');
+    final id = parts.first.trim();
+    final level = parts.length > 1 ? int.tryParse(parts[1]) ?? 1 : 1;
+    return (id, level <= 0 ? 1 : level);
   }
 
   Future<ui.Image?> _tryLoad(String path) async {
@@ -158,14 +180,19 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
   void _rebuildSchool() {
     _fishes.clear();
     final total = widget.fishCount.clamp(1, 12);
+    final keys = widget.fishIds ?? const <String>[];
 
-    final ids = widget.fishIds ?? [];
-
-    for (final id in ids.take(total)) {
+    for (final key in keys.take(total)) {
+      final (id, level) = _parseKey(key);
       final bean = FishCatalog.byId(id);
       if (bean == null) continue;
 
-      final fish = Fish.random(rng, bean);
+      final fish = Fish.random(
+        rng,
+        bean,
+        level: level,
+      );
+
       _attachSprite(fish);
       _fishes.add(fish);
     }
@@ -182,11 +209,11 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
   void _addFish() {
     if (_fishes.length >= 12) return;
 
-    final all = FishCatalog.all;
+    const all = FishCatalog.all;
     if (all.isEmpty) return;
 
     final bean = all[rng.nextInt(all.length)];
-    final fish = Fish.random(rng, bean);
+    final fish = Fish.random(rng, bean, level: 1);
 
     _attachSprite(fish);
     _fishes.add(fish);
@@ -208,6 +235,20 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
     return LayoutBuilder(
       builder: (context, c) {
         final size = Size(c.maxWidth, c.maxHeight);
+
+        if (size.width < 50 || size.height < 120) {
+          return GestureDetector(
+            onTap: widget.onTap,
+            child: CustomPaint(
+              painter: AquariumPainter(
+                fishes: const [],
+                bubbles: const [],
+                time: _time,
+              ),
+              child: widget.overlayChild ?? const SizedBox.expand(),
+            ),
+          );
+        }
 
         for (final f in _fishes) {
           f.update(_frameDt, size);
