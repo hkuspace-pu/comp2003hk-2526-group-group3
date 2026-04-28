@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
-import '../services/firestore_service.dart';
 import 'purchase_success_screen.dart';
 
 class PurchaseConfirmScreen extends StatefulWidget {
@@ -51,7 +52,6 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
 
     setState(() => _isPurchasing = true);
 
-    final item = AppConstants.storeItems[widget.itemId]!;
     final isFish = ['clownfish', 'goldfish', 'shrimp', 'pufferfish']
         .contains(widget.itemId);
     final isDecoration = ['seaweed', 'coral'].contains(widget.itemId);
@@ -113,15 +113,11 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
                   child: Column(
                     children: [
                       const SizedBox(height: 40),
-
-                      // Item Icon
                       Text(
                         item['icon'],
                         style: const TextStyle(fontSize: 80),
                       ),
                       const SizedBox(height: 16),
-
-                      // Item Name
                       Text(
                         item['name'],
                         style: const TextStyle(
@@ -131,8 +127,6 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
                         ),
                       ),
                       const SizedBox(height: 40),
-
-                      // Price Info
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(24),
@@ -156,8 +150,6 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
                         ),
                       ),
                       const SizedBox(height: 40),
-
-                      // Confirm Button
                       SizedBox(
                         width: double.infinity,
                         height: 56,
@@ -166,7 +158,7 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
                               ? _confirmPurchase
                               : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accentOrange,
+                            backgroundColor: AppColors.primaryDarkGrey,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -177,24 +169,21 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
                               : const Text(
                                   'CONFIRM PURCHASE',
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Cancel Button
                       SizedBox(
                         width: double.infinity,
                         height: 56,
-                        child: OutlinedButton(
+                        child: ElevatedButton(
                           onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textWhite,
-                            side: const BorderSide(
-                                color: AppColors.textWhite, width: 2),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryDarkGrey
+                                .withValues(alpha: 0.55),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -202,14 +191,12 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
                           child: const Text(
                             'CANCEL',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ),
-
-                      // Not enough points warning
                       if (!canAfford) ...[
                         const SizedBox(height: 24),
                         Container(
@@ -249,6 +236,16 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
               )),
         ],
       ),
+    );
+  }
+
+  ButtonStyle _storeButtonStyle({double opacity = 1.0}) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: AppColors.primaryDarkGrey.withValues(alpha: opacity),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
     );
   }
 }

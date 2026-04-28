@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
@@ -27,11 +28,8 @@ class PurchaseSuccessScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Success Icons
                 const Text('🎉 ✨ 🎉', style: TextStyle(fontSize: 48)),
                 const SizedBox(height: 24),
-
-                // Title
                 const Text(
                   'Purchase Successful!',
                   style: TextStyle(
@@ -41,12 +39,8 @@ class PurchaseSuccessScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 40),
-
-                // Item Icon
                 Text(item['icon'], style: const TextStyle(fontSize: 80)),
                 const SizedBox(height: 16),
-
-                // Item Name
                 Text(
                   item['name'],
                   style: const TextStyle(
@@ -64,8 +58,6 @@ class PurchaseSuccessScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Remaining Points
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -94,44 +86,38 @@ class PurchaseSuccessScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 40),
-
-                // Go to Aquarium Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
-                  child: ElevatedButton.icon(
+                  child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pushAndRemoveUntil(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AquariumScreen(),
+                          builder: (_) => const AquariumScreen(),
                         ),
-                        (route) => false,
                       );
                     },
-                    icon: const Icon(Icons.water),
-                    label: const Text(
-                      'VIEW AQUARIUM',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentOrange,
+                      backgroundColor: AppColors.primaryDarkGrey,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'VIEW AQUARIUM',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Continue Shopping Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
-                  child: OutlinedButton(
+                  child: ElevatedButton(
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
@@ -140,10 +126,9 @@ class PurchaseSuccessScreen extends StatelessWidget {
                         ),
                       );
                     },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textWhite,
-                      side: const BorderSide(
-                          color: AppColors.textWhite, width: 2),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          AppColors.primaryDarkGrey.withValues(alpha: 0.55),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -151,7 +136,7 @@ class PurchaseSuccessScreen extends StatelessWidget {
                     child: const Text(
                       'CONTINUE SHOPPING',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
