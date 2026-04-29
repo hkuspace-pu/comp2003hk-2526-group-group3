@@ -10,8 +10,8 @@ class AppTheme {
   static final ElevatedButtonThemeData elevatedButtonTheme =
       ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
-      backgroundColor: primaryButtonBg,
-      foregroundColor: primaryButtonText,
+      backgroundColor: const Color.fromRGBO(44, 62, 80, 1),
+      foregroundColor: const Color.fromARGB(255, 255, 107, 53),
       disabledBackgroundColor: primaryButtonBg.withOpacity(0.7),
       disabledForegroundColor: primaryButtonText.withOpacity(0.6),
       elevation: 0,

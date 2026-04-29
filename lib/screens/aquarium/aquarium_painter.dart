@@ -1,6 +1,7 @@
-// lib/aquarium/aquarium_painter.dart
 import 'dart:math';
+
 import 'package:flutter/material.dart';
+
 import 'bubble.dart';
 import 'fish.dart';
 
@@ -134,7 +135,7 @@ class AquariumPainter extends CustomPainter {
 
     final baseY = size.height - 62;
     for (int i = 0; i < 4; i++) {
-      final x = 22.0 + i * 12.0; // left cluster
+      final x = 22.0 + i * 12.0;
       final sway = sin(time * 1.1 + i) * 8.0;
       final path = Path()..moveTo(x, baseY);
       for (int j = 1; j <= 8; j++) {

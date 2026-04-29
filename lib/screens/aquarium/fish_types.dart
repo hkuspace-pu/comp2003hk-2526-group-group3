@@ -48,11 +48,4 @@ class FishCatalog {
     }
     return null;
   }
-
-  // static FishBean? byIcon(String icon) {
-  //   for (final f in all) {
-  //     if (f.icon == icon) return f;
-  //   }
-  //   return null;
-  // }
 }
