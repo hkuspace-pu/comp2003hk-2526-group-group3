@@ -37,7 +37,7 @@ class FishCatalog {
     FishBean(
       id: 'pufferfish',
       icon: '🐡',
-      name: 'Pufferfish',
+      name: 'Puffer',
       description: 'Round and adorable.',
     ),
   ];

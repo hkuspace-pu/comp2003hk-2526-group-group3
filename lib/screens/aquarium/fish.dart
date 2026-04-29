@@ -15,7 +15,6 @@ class Fish {
   int dir;
   double wiggleAmp;
   double wiggleFreq;
-  double size;
   Color bodyColor;
   ui.Image? sprite;
 
@@ -36,7 +35,6 @@ class Fish {
     required this.dir,
     required this.wiggleAmp,
     required this.wiggleFreq,
-    required this.size,
     required this.bodyColor,
     required this.level,
     required this.rng,
@@ -60,7 +58,7 @@ class Fish {
     final myRng = Random(rng.nextInt(1 << 31));
 
     double speed;
-    Color color;
+    Color? color;
 
     switch (fish.id) {
       case 'clownfish':
@@ -75,13 +73,14 @@ class Fish {
         speed = rng.nextDouble() * 35 + 20;
         color = const Color(0xFFE74C3C);
         break;
+      case 'pufferfish':
+        speed = rng.nextDouble() * 25 + 15;
+        color = const Color(0xFF6C5B7B);
+        break;
       default:
-        speed = rng.nextDouble() * 75 + 50;
-        color = const Color(0xFF2E86DE);
+        speed = 0;
+        color = Colors.grey;
     }
-
-    final baseSize = rng.nextDouble() * 1.1 + 0.7;
-    final scale = 1.0;
 
     final w = bounds?.width ?? 360;
     final h = bounds?.height ?? 220;
@@ -100,7 +99,6 @@ class Fish {
       dir: dir,
       wiggleAmp: rng.nextDouble() * 0.22 + 0.12,
       wiggleFreq: rng.nextDouble() * 1.3 + 0.6,
-      size: baseSize * scale,
       bodyColor: color,
       level: level,
       rng: myRng,
@@ -116,11 +114,11 @@ class Fish {
   }
 
   void update(double dt, Size bounds) {
-    final fishHalfWidth = (56.0 * size) / 2;
-    final tiltExtra = fishHalfWidth * 0.15;
-    final marginX = fishHalfWidth + tiltExtra + 6;
+    const fishHalfWidth = 56.0 / 2;
+    const tiltExtra = fishHalfWidth * 0.15;
+    const marginX = fishHalfWidth + tiltExtra + 6;
 
-    final left = marginX;
+    const left = marginX;
     final right = bounds.width - marginX;
 
     var x = pos.dx + dir * speed * dt;
@@ -132,7 +130,7 @@ class Fish {
       dir = -1;
     }
 
-    final topLimit = 26.0;
+    const topLimit = 26.0;
     final bottomLimit = bounds.height - 86.0;
 
     baseY = baseY.clamp(topLimit + 10, bottomLimit - 10);
@@ -210,15 +208,15 @@ class Fish {
 
   void _drawLevelBadge(Canvas canvas) {
     final bool facingLeft = dir < 0;
-    final headX = facingLeft ? pos.dx - size * 28 : pos.dx + size * 28;
-    final headY = pos.dy - size * 18;
+    final headX = facingLeft ? pos.dx - 28 : pos.dx + 28;
+    final headY = pos.dy - 18;
 
     final pulse = (sin(swimT * 4) + 1) * 0.5;
     final glowScale = 0.8 + pulse * 0.4;
     final glowAlpha = 0.55 + pulse * 0.45;
     final rotation = swimT * 0.6 * (facingLeft ? -1 : 1);
 
-    final baseSize = size * 6;
+    const baseSize = 6.0;
 
     if (level == 2) {
       _drawStarAnimated(
@@ -230,23 +228,6 @@ class Fish {
         Colors.amber.withOpacity(glowAlpha),
       );
     } else if (level == 3) {
-      _drawStarAnimated(
-        canvas,
-        Offset(headX - baseSize * 0.7, headY),
-        baseSize * 0.85,
-        rotation,
-        glowScale,
-        const Color(0xFFFF9F1C).withOpacity(glowAlpha),
-      );
-      _drawStarAnimated(
-        canvas,
-        Offset(headX + baseSize * 0.7, headY),
-        baseSize * 0.85,
-        rotation,
-        glowScale,
-        const Color(0xFFFF9F1C).withOpacity(glowAlpha),
-      );
-    } else if (level >= 4) {
       _drawCrownAnimated(
         canvas,
         Offset(headX, headY),
@@ -328,8 +309,12 @@ class Fish {
 
   void _drawSprite(Canvas canvas, double time) {
     final img = sprite!;
-    final len = 56.0 * size;
-    final height = 28.0 * size;
+    var w = 56.0;
+    var h = 28.0;
+
+    if (fish.id == 'pufferfish') {
+      h = w * 0.85;
+    }
 
     canvas.save();
     canvas.translate(pos.dx, pos.dy);
@@ -338,7 +323,7 @@ class Fish {
     canvas.drawImageRect(
       img,
       Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
-      Rect.fromCenter(center: Offset.zero, width: len, height: height),
+      Rect.fromCenter(center: Offset.zero, width: w, height: h),
       Paint(),
     );
     canvas.restore();
@@ -352,12 +337,14 @@ class Fish {
       case 'goldfish':
         _drawGoldFish(canvas, time);
         break;
-
       case 'shrimp':
         _drawShrimp(canvas, time);
         break;
+      case 'pufferfish':
+        _drawPufferFish(canvas, time);
+        break;
       default:
-        _drawBlueFish(canvas, time);
+        null;
     }
   }
 
@@ -372,9 +359,9 @@ class Fish {
   }
 
   void _drawClownFish(Canvas canvas, double time) {
-    final len = 54.0 * size;
-    final height = 24.0 * size;
-    final tailLen = 18.0 * size;
+    const len = 54.0;
+    const height = 24.0;
+    const tailLen = 18.0;
 
     _prepTransform(canvas, time, 0.20);
 
@@ -403,7 +390,7 @@ class Fish {
       );
       final r = RRect.fromRectAndRadius(
         stripeRect,
-        Radius.circular(height * 0.35),
+        const Radius.circular(height * 0.35),
       );
       canvas.drawRRect(r, stripePaint);
       canvas.drawRRect(r, edgePaint);
@@ -437,17 +424,17 @@ class Fish {
 
     final eyePaint = Paint()..color = Colors.white;
     final pupilPaint = Paint()..color = Colors.black87;
-    final eyeCenter = Offset(len * 0.25, -height * 0.15);
-    canvas.drawCircle(eyeCenter, 3.0 * size, eyePaint);
-    canvas.drawCircle(eyeCenter.translate(1.0, 0.5), 1.8 * size, pupilPaint);
+    const eyeCenter = Offset(len * 0.25, -height * 0.15);
+    canvas.drawCircle(eyeCenter, 3.0, eyePaint);
+    canvas.drawCircle(eyeCenter.translate(1.0, 0.5), 1.8, pupilPaint);
 
     canvas.restore();
   }
 
   void _drawGoldFish(Canvas canvas, double time) {
-    final len = 52.0 * size;
-    final height = 22.0 * size;
-    final tailLen = 24.0 * size;
+    const len = 52.0;
+    const height = 22.0;
+    const tailLen = 24.0;
 
     _prepTransform(canvas, time, 0.18);
 
@@ -497,17 +484,144 @@ class Fish {
 
     final eyePaint = Paint()..color = Colors.white;
     final pupilPaint = Paint()..color = Colors.black87;
-    final eyeCenter = Offset(len * 0.25, -height * 0.1);
-    canvas.drawCircle(eyeCenter, 2.8 * size, eyePaint);
-    canvas.drawCircle(eyeCenter.translate(1.0, 0.5), 1.7 * size, pupilPaint);
+    const eyeCenter = Offset(len * 0.25, -height * 0.1);
+    canvas.drawCircle(eyeCenter, 2.8, eyePaint);
+    canvas.drawCircle(eyeCenter.translate(1.0, 0.5), 1.7, pupilPaint);
 
     canvas.restore();
   }
 
+  void _drawPufferFish(Canvas canvas, double time) {
+    const baseR = 18.0;
+    final inflate = 1.0 + (sin(swimT * 2.2) + 1) * 0.5 * 0.18;
+    final r = baseR * inflate;
+
+    _prepTransform(canvas, time, 0.12);
+
+    final bodyRect = Rect.fromCircle(center: const Offset(0, 0), radius: r);
+    final bodyPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          bodyColor.withOpacity(0.95),
+          bodyColor.withOpacity(0.78),
+          Colors.black.withOpacity(0.18),
+        ],
+        stops: const [0.0, 0.70, 1.0],
+      ).createShader(bodyRect)
+      ..isAntiAlias = true;
+
+    canvas.drawOval(bodyRect, bodyPaint);
+
+    final spikePaint = Paint()
+      ..color = Colors.black.withOpacity(0.35)
+      ..isAntiAlias = true;
+
+    const spikeCount = 14;
+    final spikeLen = 6.0 * (0.9 + (inflate - 1) * 0.6);
+
+    for (int i = 0; i < spikeCount; i++) {
+      final a = (2 * pi / spikeCount) * i;
+      final dirV = Offset(cos(a), sin(a));
+      final tip = dirV * (r + spikeLen);
+
+      final base1 = _rotateOffset(dirV, 0.18) * (r * 0.98);
+      final base2 = _rotateOffset(dirV, -0.18) * (r * 0.98);
+
+      final p = Path()
+        ..moveTo(base1.dx, base1.dy)
+        ..lineTo(tip.dx, tip.dy)
+        ..lineTo(base2.dx, base2.dy)
+        ..close();
+
+      canvas.drawPath(p, spikePaint);
+    }
+
+    final hiPaint = Paint()
+      ..color = Colors.white.withOpacity(0.18)
+      ..isAntiAlias = true;
+
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(r * 0.20, -r * 0.20),
+        width: r * 1.15,
+        height: r * 0.85,
+      ),
+      hiPaint,
+    );
+
+    final finPaint = Paint()
+      ..color = bodyColor.withOpacity(0.65)
+      ..isAntiAlias = true;
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(-r * 0.20, -r * 0.10)
+        ..quadraticBezierTo(-r * 0.75, -r * 0.45, -r * 0.35, -r * 0.62)
+        ..quadraticBezierTo(-r * 0.10, -r * 0.35, -r * 0.20, -r * 0.10)
+        ..close(),
+      finPaint,
+    );
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(-r * 0.20, r * 0.10)
+        ..quadraticBezierTo(-r * 0.75, r * 0.45, -r * 0.35, r * 0.62)
+        ..quadraticBezierTo(-r * 0.10, r * 0.35, -r * 0.20, r * 0.10)
+        ..close(),
+      finPaint,
+    );
+
+    final tailPaint = Paint()
+      ..color = bodyColor.withOpacity(0.82)
+      ..isAntiAlias = true;
+
+    final tail = Path()
+      ..moveTo(-r * 0.98, 0)
+      ..lineTo(-r * 1.45, r * 0.35)
+      ..lineTo(-r * 1.35, 0)
+      ..lineTo(-r * 1.45, -r * 0.35)
+      ..close();
+
+    canvas.drawPath(tail, tailPaint);
+
+    final eyeWhite = Paint()..color = Colors.white.withOpacity(0.95);
+    final pupil = Paint()..color = Colors.black87;
+    const eyeR = 2.8;
+
+    final eyeOffset = Offset(r * 0.45, -r * 0.15);
+    canvas.drawCircle(eyeOffset, eyeR, eyeWhite);
+    canvas.drawCircle(
+      eyeOffset.translate(1.0, 0.6),
+      eyeR * 0.55,
+      pupil,
+    );
+
+    final mouthPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..color = Colors.black.withOpacity(0.55);
+
+    final mouthRect = Rect.fromCenter(
+      center: Offset(r * 0.62, r * 0.10),
+      width: r * 0.38,
+      height: r * 0.28,
+    );
+    canvas.drawArc(mouthRect, 0.15 * pi, 0.7 * pi, false, mouthPaint);
+
+    canvas.restore();
+  }
+
+  Offset _rotateOffset(Offset v, double a) {
+    final ca = cos(a);
+    final sa = sin(a);
+    return Offset(v.dx * ca - v.dy * sa, v.dx * sa + v.dy * ca);
+  }
+
   void _drawBlueFish(Canvas canvas, double time) {
-    final len = 56.0 * size;
-    final height = 24.0 * size;
-    final tailLen = 20.0 * size;
+    const len = 56.0;
+    const height = 24.0;
+    const tailLen = 20.0;
 
     _prepTransform(canvas, time, 0.20);
 
@@ -547,16 +661,16 @@ class Fish {
 
     final eyePaint = Paint()..color = Colors.white;
     final pupilPaint = Paint()..color = Colors.black87;
-    final eyeCenter = Offset(len * 0.28, -height * 0.12);
-    canvas.drawCircle(eyeCenter, 3.0 * size, eyePaint);
-    canvas.drawCircle(eyeCenter.translate(1.0, 0.5), 1.8 * size, pupilPaint);
+    const eyeCenter = Offset(len * 0.28, -height * 0.12);
+    canvas.drawCircle(eyeCenter, 3.0, eyePaint);
+    canvas.drawCircle(eyeCenter.translate(1.0, 0.5), 1.8, pupilPaint);
 
     canvas.restore();
   }
 
   void _drawShrimp(Canvas canvas, double time) {
-    final len = 40.0 * size;
-    final height = 18.0 * size;
+    const len = 40.0;
+    const height = 18.0;
     final wiggle = sin(time * 2 * pi * wiggleFreq) * wiggleAmp;
 
     canvas.save();
@@ -574,7 +688,7 @@ class Fish {
         height: height * (0.85 - t * 0.2),
       );
       canvas.drawRRect(
-        RRect.fromRectAndRadius(segRect, Radius.circular(height * 0.5)),
+        RRect.fromRectAndRadius(segRect, const Radius.circular(height * 0.5)),
         segPaint,
       );
     }

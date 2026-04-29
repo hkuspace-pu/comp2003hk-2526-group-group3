@@ -54,14 +54,14 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
 
   ui.Image? _clownImg;
   ui.Image? _goldImg;
-  ui.Image? _blueImg;
+  ui.Image? _pufferImg;
   ui.Image? _shrimpImg;
 
   bool _spritesRequested = false;
 
   static const _pClown = 'assets/images/clownfish.png';
   static const _pGold = 'assets/images/goldFish.png';
-  static const _pBlue = 'assets/images/blueFish.png';
+  static const _pPuffer = 'assets/images/puffer.png';
   static const _pShrimp = 'assets/images/shrimp.png';
 
   @override
@@ -152,12 +152,12 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
     final imgs = await Future.wait<ui.Image?>([
       _tryLoad(_pClown),
       _tryLoad(_pGold),
-      _tryLoad(_pBlue),
+      _tryLoad(_pPuffer),
       _tryLoad(_pShrimp),
     ]);
     _clownImg = imgs[0];
     _goldImg = imgs[1];
-    _blueImg = imgs[2];
+    _pufferImg = imgs[2];
     _shrimpImg = imgs[3];
   }
 
@@ -172,14 +172,17 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
       case 'shrimp':
         f.sprite = _shrimpImg;
         break;
+      case 'pufferfish':
+        f.sprite = _pufferImg;
+        break;
       default:
-        f.sprite = _blueImg;
+        f.sprite = null;
     }
   }
 
   void _rebuildSchool() {
     _fishes.clear();
-    final total = widget.fishCount.clamp(1, 12);
+    final total = widget.fishCount.clamp(0, 12);
     final keys = widget.fishIds ?? const <String>[];
 
     for (final key in keys.take(total)) {
@@ -207,7 +210,7 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
   }
 
   void _addFish() {
-    if (_fishes.length >= 12) return;
+    if (_fishes.length >= 10) return;
 
     const all = FishCatalog.all;
     if (all.isEmpty) return;

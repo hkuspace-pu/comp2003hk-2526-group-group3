@@ -26,8 +26,8 @@ class _AquariumScreenState extends State<AquariumScreen> {
   late final AnimatedAquariumController _controller;
   late final FirestoreService _firestoreService;
 
-  final GlobalKey _tankCaptureKey = GlobalKey();
-  static const int _tankMax = 10;
+  final GlobalKey _aquariumCaptureKey = GlobalKey();
+  static const int _aquariumMax = 10;
 
   @override
   void initState() {
@@ -45,10 +45,10 @@ class _AquariumScreenState extends State<AquariumScreen> {
     FocusScope.of(context).unfocus();
     await WidgetsBinding.instance.endOfFrame;
 
-    final boundary = _tankCaptureKey.currentContext?.findRenderObject()
+    final boundary = _aquariumCaptureKey.currentContext?.findRenderObject()
         as RenderRepaintBoundary?;
     if (boundary == null) {
-      throw Exception('not found render object for tank capture');
+      throw Exception('not found render object for aquarium capture');
     }
 
     final image = await boundary.toImage(pixelRatio: 3.0);
@@ -178,7 +178,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
                             ),
                             const SizedBox(height: 10),
                             RepaintBoundary(
-                              key: _tankCaptureKey,
+                              key: _aquariumCaptureKey,
                               child: Container(
                                 margin: const EdgeInsets.all(20),
                                 padding: const EdgeInsets.all(20),
@@ -195,54 +195,37 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                 ),
                                 child: Stack(
                                   children: [
-                                    if (validFishKeys.isEmpty)
-                                      Center(
-                                        child: Text(
-                                          'No fish in tank yet 🐟\nGo to Collection to add fish.',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color:
-                                                Colors.white.withOpacity(0.90),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
+                                    AnimatedAquarium(
+                                      controller: _controller,
+                                      fishCount: fishCount,
+                                      fishIds: validFishKeys,
+                                      overlayChild: const Stack(
+                                        children: [
+                                          Positioned.fill(
+                                            child:
+                                                IgnorePointer(child: Center()),
                                           ),
-                                        ),
-                                      )
-                                    else
-                                      AnimatedAquarium(
-                                        controller: _controller,
-                                        fishCount: fishCount,
-                                        fishIds: validFishKeys,
-                                        overlayChild: const Stack(
-                                          children: [
-                                            Positioned.fill(
-                                              child: IgnorePointer(
-                                                  child: Center()),
-                                            ),
-                                            Positioned(
-                                              left: 16,
-                                              bottom: 26,
-                                              child: Text('🌿',
-                                                  style:
-                                                      TextStyle(fontSize: 36)),
-                                            ),
-                                            Positioned(
-                                              left: 72,
-                                              bottom: 28,
-                                              child: Text('🪨',
-                                                  style:
-                                                      TextStyle(fontSize: 28)),
-                                            ),
-                                            Positioned(
-                                              right: 24,
-                                              bottom: 32,
-                                              child: Text('🪸',
-                                                  style:
-                                                      TextStyle(fontSize: 34)),
-                                            ),
-                                          ],
-                                        ),
+                                          Positioned(
+                                            left: 16,
+                                            bottom: 26,
+                                            child: Text('🌿',
+                                                style: TextStyle(fontSize: 36)),
+                                          ),
+                                          Positioned(
+                                            left: 72,
+                                            bottom: 28,
+                                            child: Text('🪨',
+                                                style: TextStyle(fontSize: 28)),
+                                          ),
+                                          Positioned(
+                                            right: 24,
+                                            bottom: 32,
+                                            child: Text('🪸',
+                                                style: TextStyle(fontSize: 34)),
+                                          ),
+                                        ],
                                       ),
+                                    ),
                                     Positioned(
                                       right: 10,
                                       top: 10,
@@ -258,7 +241,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                                   .withOpacity(0.22)),
                                         ),
                                         child: Text(
-                                          '🐟 $fishCount/$_tankMax',
+                                          '🐟 $fishCount/$_aquariumMax',
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,

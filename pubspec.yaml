@@ -34,6 +34,7 @@ flutter:
     - assets/images/blueFish.png
     - assets/images/shrimp.png
     - assets/images/goldFish.png
+    - assets/images/puffer.png
 
   # fonts:
   #   - family: Poppins
