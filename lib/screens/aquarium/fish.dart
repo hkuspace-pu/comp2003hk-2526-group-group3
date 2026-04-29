@@ -77,6 +77,10 @@ class Fish {
         speed = rng.nextDouble() * 25 + 15;
         color = const Color(0xFF6C5B7B);
         break;
+      case 'bluefish':
+        speed = rng.nextDouble() * 60 + 40;
+        color = const Color(0xFF2980B9);
+        break;
       default:
         speed = 0;
         color = Colors.grey;
@@ -230,6 +234,10 @@ class Fish {
       case 'pufferfish':
         bodyW = 56.0;
         bodyH = bodyW * 0.85;
+        break;
+      case 'bluefish':
+        bodyW = 50.0;
+        bodyH = 20.0;
         break;
     }
 
@@ -436,6 +444,9 @@ class Fish {
         break;
       case 'pufferfish':
         _drawPufferFish(canvas, time);
+        break;
+      case 'bluefish':
+        _drawBlueFish(canvas, time);
         break;
       default:
         null;

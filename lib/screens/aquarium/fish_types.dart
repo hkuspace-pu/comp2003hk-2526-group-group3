@@ -40,6 +40,12 @@ class FishCatalog {
       name: 'Puffer',
       description: 'Round and adorable.',
     ),
+    FishBean(
+      id: 'bluefish',
+      icon: '🐟',
+      name: 'Bluefish',
+      description: 'A vibrant blue companion.',
+    )
   ];
 
   static FishBean? byId(String id) {

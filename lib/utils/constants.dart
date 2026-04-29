@@ -1,22 +1,7 @@
 class AppConstants {
-  // App Info
   static const String appName = 'Focus Aquarium';
   static const String version = '1.0.0';
-
-  // Fake Data
-  static const int defaultPoints = 24000;
-  static const int defaultLevel = 8;
-  static const double totalFocusHours = 85.5;
-  static const int totalActivities = 142;
-  static const int currentStreak = 15;
-  static const int fishCount = 3;
-  static const int decorationCount = 5;
-  static const int foodStock = 20;
-
-  // Focus Times (minutes)
   static const List<int> focusTimes = [15, 25, 30, 45, 60];
-
-  // Activity Types
   static const List<String> activityTypes = [
     'Running',
     'Reading',
@@ -28,21 +13,17 @@ class AppConstants {
     'Meditation',
   ];
 
-  // Moods
   static const List<String> moods = ['😊', '😐', '😔', '😴', '🔥'];
-
-  // Store Items
   static const Map<String, Map<String, dynamic>> storeItems = {
-    'clownfish': {'name': 'Clownfish', 'price': 10, 'icon': '🐠'},
-    'goldfish': {'name': 'Goldfish', 'price': 12, 'icon': '🐟'},
-    'shrimp': {'name': 'Ornamental Shrimp', 'price': 20, 'icon': '🦐'},
-    'pufferfish': {'name': 'Pufferfish', 'price': 50, 'icon': '🐡'},
-    'food': {'name': 'Fish Food (1 serving)', 'price': 10, 'icon': '🍖'},
-    'seaweed': {'name': 'Seaweed', 'price': 10, 'icon': '🌿'},
-    'coral': {'name': 'Coral Reef', 'price': 30, 'icon': '🪸'},
+    'clownfish': {'name': 'Clownfish', 'price': 50, 'icon': '🐠'},
+    'goldfish': {'name': 'Goldfish', 'price': 70, 'icon': '🐟'},
+    'shrimp': {'name': 'Shrimp', 'price': 60, 'icon': '🦐'},
+    'pufferfish': {'name': 'Pufferfish', 'price': 80, 'icon': '🐡'},
+    'bluefish': {'name': 'Bluefish', 'price': 90, 'icon': '🐟'},
+    'lucky': {'name': 'Lucky Draw', 'price': 100, 'icon': '🎰'},
+    'food': {'name': 'Fish Food (1 serving)', 'price': 30, 'icon': '🍖'},
   };
 
-  // Achievements
   static const List<Map<String, dynamic>> achievements = [
     {
       'id': 'focus_master',
@@ -99,4 +80,12 @@ class AppConstants {
       'target': 30,
     },
   ];
+
+  static const Map<String, double> luckyWeights = {
+    'clownfish': 50,
+    'goldfish': 30,
+    'shrimp': 15,
+    'pufferfish': 4,
+    'bluefish': 1
+  };
 }

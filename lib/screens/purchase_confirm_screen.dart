@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/firestore_service.dart';
+import 'lucky_screen.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
@@ -50,6 +51,18 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    if (widget.itemId == 'lucky') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LuckyScreen(
+            price: widget.itemPrice,
+            weights: AppConstants.luckyWeights,
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _isPurchasing = true);
 
     final isFish = ['clownfish', 'goldfish', 'shrimp', 'pufferfish']
@@ -72,7 +85,7 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => PurchaseSuccessScreen(
+          builder: (_) => PurchaseSuccessScreen(
             itemId: widget.itemId,
             remainingPoints: _currentPoints - widget.itemPrice,
           ),
@@ -208,7 +221,8 @@ class _PurchaseConfirmScreenState extends State<PurchaseConfirmScreen> {
                           child: const Text(
                             'Not enough points! Complete more focus sessions or activities to earn points.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(
+                                color: AppColors.textWhite, fontSize: 14),
                           ),
                         ),
                       ],

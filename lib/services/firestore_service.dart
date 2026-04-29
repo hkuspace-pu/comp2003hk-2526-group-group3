@@ -1,8 +1,19 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/activity_log.dart';
 import '../models/focus_session.dart';
 import '../models/user_profile.dart';
+
+class LuckyResult {
+  final String fishId;
+  final int remainingPoints;
+  LuckyResult({
+    required this.fishId,
+    required this.remainingPoints,
+  });
+}
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -415,6 +426,60 @@ class FirestoreService {
       tx.update(userRef, updates);
       return true;
     });
+  }
+
+  Future<LuckyResult?> purchaseLucky({
+    required String uid,
+    required int price,
+    required Map<String, double> weights,
+  }) async {
+    final fishId = _pickWeighted(weights, Random());
+    final userRef = _db.collection('users').doc(uid);
+
+    return _db.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) return null;
+
+      final data = snap.data()!;
+      final points = data['totalPoints'] ?? 0;
+      if (points < price) return null;
+
+      final inv = normalizeFishInventory(
+        Map<String, dynamic>.from(data['fishInventory'] ?? {}),
+      );
+
+      final k = fishKey(fishId, 1);
+      inv[k] = (inv[k] ?? 0) + 1;
+
+      final remaining = points - price;
+
+      tx.update(userRef, {
+        'totalPoints': remaining,
+        'fishInventory': inv,
+      });
+
+      return LuckyResult(
+        fishId: fishId,
+        remainingPoints: remaining,
+      );
+    });
+  }
+
+  static String _pickWeighted(Map<String, double> weights, Random rng) {
+    final entries = weights.entries.where((e) => e.value > 0).toList();
+    if (entries.isEmpty) {
+      throw StateError('No valid lucky weights');
+    }
+
+    final total = entries.fold<double>(0, (s, e) => s + e.value);
+    final r = rng.nextDouble() * total;
+
+    double acc = 0;
+    for (final e in entries) {
+      acc += e.value;
+      if (r <= acc) return e.key;
+    }
+    return entries.last.key;
   }
 
   int _calculateLevel(int points) {

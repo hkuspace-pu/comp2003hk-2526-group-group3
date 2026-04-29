@@ -56,6 +56,7 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
   ui.Image? _goldImg;
   ui.Image? _pufferImg;
   ui.Image? _shrimpImg;
+  ui.Image? _blueImg;
 
   bool _spritesRequested = false;
 
@@ -63,6 +64,7 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
   static const _pGold = 'assets/images/goldFish.png';
   static const _pPuffer = 'assets/images/puffer.png';
   static const _pShrimp = 'assets/images/shrimp.png';
+  static const _pBlue = 'assets/images/blueFish.png';
 
   @override
   void initState() {
@@ -154,11 +156,13 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
       _tryLoad(_pGold),
       _tryLoad(_pPuffer),
       _tryLoad(_pShrimp),
+      _tryLoad(_pBlue),
     ]);
     _clownImg = imgs[0];
     _goldImg = imgs[1];
     _pufferImg = imgs[2];
     _shrimpImg = imgs[3];
+    _blueImg = imgs[4];
   }
 
   void _attachSprite(Fish f) {
@@ -174,6 +178,9 @@ class _AnimatedAquariumState extends State<AnimatedAquarium>
         break;
       case 'pufferfish':
         f.sprite = _pufferImg;
+        break;
+      case 'bluefish':
+        f.sprite = _blueImg;
         break;
       default:
         f.sprite = null;
