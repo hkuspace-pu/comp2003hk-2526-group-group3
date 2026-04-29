@@ -207,31 +207,58 @@ class Fish {
   }
 
   void _drawLevelBadge(Canvas canvas) {
-    final bool facingLeft = dir < 0;
-    final headX = facingLeft ? pos.dx - 28 : pos.dx + 28;
-    final headY = pos.dy - 18;
-
     final pulse = (sin(swimT * 4) + 1) * 0.5;
     final glowScale = 0.8 + pulse * 0.4;
     final glowAlpha = 0.55 + pulse * 0.45;
-    final rotation = swimT * 0.6 * (facingLeft ? -1 : 1);
+    final rotation = swimT * 0.6 * (dir < 0 ? -1 : 1);
 
-    const baseSize = 6.0;
+    double bodyW = 56.0;
+    double bodyH = 28.0;
+    switch (fish.id) {
+      case 'clownfish':
+        bodyW = 54.0;
+        bodyH = 24.0;
+        break;
+      case 'goldfish':
+        bodyW = 52.0;
+        bodyH = 22.0;
+        break;
+      case 'shrimp':
+        bodyW = 40.0;
+        bodyH = 18.0;
+        break;
+      case 'pufferfish':
+        bodyW = 56.0;
+        bodyH = bodyW * 0.85;
+        break;
+    }
+
+    final headX = pos.dx + dir * (bodyW * 0.46);
+
+    final headTopY = pos.dy - bodyH * 0.55;
+
+    const baseSize = 9.0;
 
     if (level == 2) {
+      final starCenter = Offset(headX, headTopY + 4);
       _drawStarAnimated(
         canvas,
-        Offset(headX, headY),
+        starCenter,
         baseSize,
         rotation,
         glowScale,
         Colors.amber.withOpacity(glowAlpha),
       );
     } else if (level == 3) {
+      final crownSize = baseSize * (1.15 + pulse * 0.20);
+      final crownH = crownSize * 0.8;
+      const pad = 3.0;
+      final crownCenterY = (headTopY + pad) - crownH * 0.25;
+
       _drawCrownAnimated(
         canvas,
-        Offset(headX, headY),
-        baseSize * (1.1 + pulse * 0.25),
+        Offset(headX, crownCenterY),
+        crownSize,
         glowAlpha,
       );
     }
@@ -276,34 +303,101 @@ class Fish {
     canvas.save();
     canvas.translate(c.dx, c.dy);
 
-    final w = s;
-    final h = s * 0.7;
+    final w = s * 1.55;
+    final h = s * 1.15;
+    final bandH = h * 0.28;
 
-    final path = Path()
-      ..moveTo(-w * 0.5, h * 0.25)
-      ..lineTo(-w * 0.3, -h * 0.2)
-      ..lineTo(0, -h * 0.5)
-      ..lineTo(w * 0.3, -h * 0.2)
-      ..lineTo(w * 0.5, h * 0.25)
+    canvas.translate(0, h * 0.06);
+
+    final topY = -h * 0.55;
+    final midY = -h * 0.18;
+    final bandTopY = h * 0.05;
+    final bandBottomY = bandTopY + bandH;
+    final xL = -w * 0.40;
+    const xC = 0.0;
+    final xR = w * 0.40;
+    final xMin = -w * 0.55;
+    final xMax = w * 0.55;
+
+    final crownPath = Path()
+      ..moveTo(xMin, bandBottomY)
+      ..lineTo(xMin, bandTopY)
+      ..quadraticBezierTo(-w * 0.48, bandTopY, -w * 0.46, midY)
+      ..lineTo(xL, topY * 0.92)
+      ..quadraticBezierTo(-w * 0.22, midY, -w * 0.16, midY)
+      ..lineTo(xC, topY)
+      ..quadraticBezierTo(w * 0.16, midY, w * 0.22, midY)
+      ..lineTo(xR, topY * 0.92)
+      ..quadraticBezierTo(w * 0.46, midY, w * 0.46, bandTopY)
+      ..lineTo(xMax, bandTopY)
+      ..lineTo(xMax, bandBottomY)
       ..close();
 
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = LinearGradient(
-          colors: [
-            const Color(0xFFFFF3C0).withOpacity(alpha),
-            const Color(0xFFFFB300).withOpacity(alpha),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ).createShader(Rect.fromCenter(
-          center: Offset.zero,
-          width: w,
-          height: h,
-        ))
-        ..isAntiAlias = true,
+    final bandRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(xMin, bandTopY, xMax - xMin, bandH),
+      Radius.circular(bandH * 0.38),
     );
+
+    final glowPaint = Paint()
+      ..color = const Color(0xFFFFD54F).withOpacity(alpha * 0.55)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
+
+    canvas.drawPath(crownPath, glowPaint);
+
+    final bodyPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          const Color(0xFFFFF3C0).withOpacity(alpha),
+          const Color(0xFFFFB300).withOpacity(alpha),
+          const Color(0xFFF59E0B).withOpacity(alpha),
+        ],
+        stops: const [0.0, 0.55, 1.0],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Rect.fromLTWH(xMin, topY, xMax - xMin, bandBottomY - topY))
+      ..isAntiAlias = true;
+
+    canvas.drawPath(crownPath, bodyPaint);
+
+    final bandPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          const Color(0xFFFFC107).withOpacity(alpha),
+          const Color(0xFFFF8F00).withOpacity(alpha),
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(bandRect.outerRect)
+      ..isAntiAlias = true;
+
+    canvas.drawRRect(bandRect, bandPaint);
+
+    final strokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = max(1.0, s * 0.10)
+      ..color = Colors.brown.withOpacity(alpha * 0.35)
+      ..isAntiAlias = true;
+
+    canvas.drawPath(crownPath, strokePaint);
+    canvas.drawRRect(bandRect, strokePaint);
+
+    final jewelPaint = Paint()
+      ..color = const Color(0xFF4FC3F7).withOpacity(alpha * 0.95)
+      ..isAntiAlias = true;
+
+    final jewelGlow = Paint()
+      ..color = const Color(0xFFB3E5FC).withOpacity(alpha * 0.65)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0)
+      ..isAntiAlias = true;
+
+    final jy = bandTopY + bandH * 0.52;
+    final jr = max(1.6, s * 0.14);
+
+    for (final jx in [-w * 0.28, 0.0, w * 0.28]) {
+      canvas.drawCircle(Offset(jx, jy), jr * 1.35, jewelGlow);
+      canvas.drawCircle(Offset(jx, jy), jr, jewelPaint);
+    }
+
     canvas.restore();
   }
 
