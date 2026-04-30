@@ -6,8 +6,8 @@ import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
-import 'aquarium_screen.dart';
 import 'store_screen.dart';
+import 'dashboard_screen.dart';
 
 class LuckyScreen extends StatefulWidget {
   final int price;
@@ -27,12 +27,11 @@ class _LuckyScreenState extends State<LuckyScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctl;
 
-  // phases
-  late final Animation<double> _spin; // 0~1
-  late final Animation<double> _shake; // 0~1
-  late final Animation<double> _split; // 0~1 (capsule split)
-  late final Animation<double> _flash; // 0~1 (light burst)
-  late final Animation<double> _confetti; // 0~1 (confetti fall)
+  late final Animation<double> _spin;
+  late final Animation<double> _shake;
+  late final Animation<double> _split;
+  late final Animation<double> _flash;
+  late final Animation<double> _confetti;
 
   final _firestore = FirestoreService();
 
@@ -397,7 +396,8 @@ class _LuckyScreenState extends State<LuckyScreen>
           child: ElevatedButton(
             onPressed: () {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const AquariumScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const DashboardScreen(initialIndex: 2)),
                 (r) => false,
               );
             },
@@ -419,9 +419,11 @@ class _LuckyScreenState extends State<LuckyScreen>
           height: 56,
           child: ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const StoreScreen()),
-                (r) => false,
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const StoreScreen(),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(
@@ -445,8 +447,7 @@ class _LuckyScreenState extends State<LuckyScreen>
 class _CapsuleSplitBall extends StatelessWidget {
   final double size;
   final double glow;
-  final double split; // 0..1
-
+  final double split;
   const _CapsuleSplitBall({
     required this.size,
     required this.glow,
@@ -457,7 +458,6 @@ class _CapsuleSplitBall extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = size;
 
-    // ✅ spinning 期間：一定用完整球
     if (split < 0.02) {
       return SizedBox(
         width: d,
@@ -472,7 +472,6 @@ class _CapsuleSplitBall extends StatelessWidget {
       );
     }
 
-    // ✅ 裂開期間：完整球做底 + 上下兩半分離（更自然，冇裂縫）
     final sep = (d * 0.35) * split;
     final fadeOut = (split * 0.65).clamp(0.0, 0.75);
 
@@ -483,14 +482,10 @@ class _CapsuleSplitBall extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           _GlowBehind(size: d, glow: glow),
-
-          // 底：完整球淡出
           Opacity(
             opacity: (1.0 - fadeOut),
             child: _CapsuleBallFace(size: d),
           ),
-
-          // 上半
           Transform.translate(
             offset: Offset(0, -sep),
             child: ClipRect(
@@ -501,8 +496,6 @@ class _CapsuleSplitBall extends StatelessWidget {
               ),
             ),
           ),
-
-          // 下半
           Transform.translate(
             offset: Offset(0, sep),
             child: ClipRect(
@@ -624,7 +617,7 @@ class _ConfettiLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
+    return SizedBox.expand(
       child: CustomPaint(
         painter: _ConfettiPainter(progress: progress),
       ),

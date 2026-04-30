@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
-import 'aquarium_screen.dart';
 import 'store_screen.dart';
+import 'dashboard_screen.dart';
 
 class PurchaseSuccessScreen extends StatelessWidget {
   final String itemId;
@@ -91,11 +91,11 @@ class PurchaseSuccessScreen extends StatelessWidget {
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
+                      Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(
-                          builder: (_) => const AquariumScreen(),
-                        ),
+                            builder: (_) =>
+                                const DashboardScreen(initialIndex: 2)),
+                        (route) => false,
                       );
                     },
                     style: ElevatedButton.styleFrom(

@@ -15,14 +15,22 @@ import 'statistics_screen.dart';
 import 'store_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  final int initialIndex;
+
+  const DashboardScreen({Key? key, this.initialIndex = 0}) : super(key: key);
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           AquariumScreen(),
           StatisticsScreen(),
           ProfileScreen(),
+          StoreScreen()
         ],
       ),
       bottomNavigationBar: BottomNavBar(
