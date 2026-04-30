@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
-import '../services/firestore_service.dart';
 import 'aquarium_screen.dart';
 import 'dashboard_screen.dart';
 
@@ -47,7 +48,6 @@ class _FocusCompleteScreenState extends State<FocusCompleteScreen> {
       if (mounted) setState(() => _isSaving = false);
       return;
     }
-
 
     final points = _calculatePoints();
 
@@ -174,7 +174,6 @@ class _FocusCompleteScreenState extends State<FocusCompleteScreen> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryDarkGrey,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -187,7 +186,7 @@ class _FocusCompleteScreenState extends State<FocusCompleteScreen> {
                       SizedBox(
                         width: double.infinity,
                         height: 56,
-                        child: OutlinedButton(
+                        child: ElevatedButton(
                           onPressed: () {
                             Navigator.pushAndRemoveUntil(
                               context,
@@ -197,10 +196,8 @@ class _FocusCompleteScreenState extends State<FocusCompleteScreen> {
                               (route) => false,
                             );
                           },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textWhite,
+                          style: ElevatedButton.styleFrom(
                             side: const BorderSide(
-                              color: AppColors.textWhite,
                               width: 2,
                             ),
                             shape: RoundedRectangleBorder(

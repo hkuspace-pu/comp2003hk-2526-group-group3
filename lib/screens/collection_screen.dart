@@ -344,30 +344,35 @@ class _CollectionScreenState extends State<CollectionScreen> {
               ),
               if (selectedLevel < 3) ...[
                 const SizedBox(height: 10),
-                SizedBox(
-                  height: 42,
-                  child: ElevatedButton(
-                    onPressed: canEvolve
-                        ? () async {
-                            await _confirmAndEvolve(
-                              context,
-                              firestoreService: firestoreService,
-                              uid: uid,
-                              fish: fish,
-                              fromLevel: selectedLevel,
-                              toLevel: selectedLevel + 1,
-                              freeCount: safeFreeSel,
-                              cost: evolveCost,
-                            );
-                          }
-                        : null,
-                    style: _evolutionButtonStyle(),
-                    child: const Text(
-                      'EVOLUTION',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                ElevatedButton(
+                  onPressed: canEvolve
+                      ? () async {
+                          await _confirmAndEvolve(
+                            context,
+                            firestoreService: firestoreService,
+                            uid: uid,
+                            fish: fish,
+                            fromLevel: selectedLevel,
+                            toLevel: selectedLevel + 1,
+                            freeCount: safeFreeSel,
+                            cost: evolveCost,
+                          );
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    fixedSize: const Size.fromHeight(48),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 18, vertical: 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    alignment: Alignment.center,
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                      height: 1.0,
+                      fontSize: 14,
                     ),
                   ),
+                  child: const Text('EVOLVE'),
                 ),
               ],
             ],
@@ -546,8 +551,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
                                                   uid: uid,
                                                   fishKey: r.key,
                                                 );
-                                                if (!dialogContext.mounted)
+                                                if (!dialogContext.mounted) {
                                                   return;
+                                                }
                                                 if (ok) {
                                                   final idx = aquariumLocal
                                                       .lastIndexOf(r.key);
@@ -598,40 +604,6 @@ class _CollectionScreenState extends State<CollectionScreen> {
           },
         );
       },
-    );
-  }
-
-  ButtonStyle _evolutionButtonStyle() {
-    return ButtonStyle(
-      backgroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
-          return Colors.grey.shade600.withValues(alpha: 0.35);
-        }
-        return null;
-      }),
-      foregroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
-          return Colors.black.withValues(alpha: 0.45);
-        }
-        return null;
-      }),
-      elevation: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) return 0;
-        return null;
-      }),
-      shadowColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) return Colors.transparent;
-        return null;
-      }),
-      side: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
-          return BorderSide(
-            color: Colors.grey.shade800.withValues(alpha: 0.35),
-            width: 1.5,
-          );
-        }
-        return null;
-      }),
     );
   }
 }

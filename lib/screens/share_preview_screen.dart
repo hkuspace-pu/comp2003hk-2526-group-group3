@@ -156,7 +156,6 @@ class _SharePreviewScreenState extends State<SharePreviewScreen> {
                       child: ElevatedButton(
                         onPressed: _sharing ? null : _share,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accentOrange,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
