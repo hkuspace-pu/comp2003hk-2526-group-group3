@@ -43,7 +43,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           AquariumScreen(),
           StatisticsScreen(),
           ProfileScreen(),
-          StoreScreen()
         ],
       ),
       bottomNavigationBar: BottomNavBar(

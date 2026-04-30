@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
-import 'store_screen.dart';
 import 'dashboard_screen.dart';
+import 'store_screen.dart';
 
 class PurchaseSuccessScreen extends StatelessWidget {
   final String itemId;

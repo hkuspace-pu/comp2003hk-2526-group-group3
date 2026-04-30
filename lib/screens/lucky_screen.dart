@@ -1,4 +1,5 @@
 import 'dart:math';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -6,8 +7,8 @@ import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
-import 'store_screen.dart';
 import 'dashboard_screen.dart';
+import 'store_screen.dart';
 
 class LuckyScreen extends StatefulWidget {
   final int price;

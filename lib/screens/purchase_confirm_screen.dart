@@ -2,10 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/firestore_service.dart';
-import 'lucky_screen.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
+import 'lucky_screen.dart';
 import 'purchase_success_screen.dart';
 
 class PurchaseConfirmScreen extends StatefulWidget {
