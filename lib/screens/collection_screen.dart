@@ -576,8 +576,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
                                                   uid: uid,
                                                   fishKey: r.key,
                                                 );
-                                                if (!dialogContext.mounted)
+                                                if (!dialogContext.mounted) {
                                                   return;
+                                                }
                                                 if (ok) {
                                                   aquariumLocal.add(r.key);
                                                   setLocalState(() {});

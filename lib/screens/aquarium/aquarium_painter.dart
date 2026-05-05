@@ -34,8 +34,12 @@ class AquariumPainter extends CustomPainter {
     _drawSandTray(canvas, size);
     _drawSeaweed(canvas, size, time);
 
-    for (final b in bubbles) b.draw(canvas);
-    for (final f in fishes) f.draw(canvas, time);
+    for (final b in bubbles) {
+      b.draw(canvas);
+    }
+    for (final f in fishes) {
+      f.draw(canvas, time);
+    }
 
     _drawCausticsOverlay(canvas, size, time);
 
@@ -55,7 +59,7 @@ class AquariumPainter extends CustomPainter {
   }
 
   void _drawSurfaceHighlight(Canvas canvas, Size size, double time) {
-    final baseY = 20.0;
+    const baseY = 20.0;
     const amp = 4.0;
     final k = 2 * pi / (size.width * 0.8);
     const speed = 0.7;
@@ -102,7 +106,7 @@ class AquariumPainter extends CustomPainter {
   }
 
   void _drawSandTray(Canvas canvas, Size size) {
-    final trayHeight = 16.0;
+    const trayHeight = 16.0;
     final trayWidth = size.width - 32;
     final trayRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(16, size.height - 60, trayWidth, trayHeight),

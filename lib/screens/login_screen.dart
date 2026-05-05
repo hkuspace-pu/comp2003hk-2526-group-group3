@@ -120,16 +120,20 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String _parseError(String error) {
-    if (error.contains('user-not-found'))
+    if (error.contains('user-not-found')) {
       return 'No account found with this email';
+    }
     if (error.contains('wrong-password')) return 'Incorrect password';
-    if (error.contains('email-already-in-use'))
+    if (error.contains('email-already-in-use')) {
       return 'Email already registered';
-    if (error.contains('weak-password'))
+    }
+    if (error.contains('weak-password')) {
       return 'Password must be at least 6 characters';
+    }
     if (error.contains('invalid-email')) return 'Invalid email address';
-    if (error.contains('invalid-credential'))
+    if (error.contains('invalid-credential')) {
       return 'Incorrect email or password';
+    }
     if (error.contains('email-not-verified')) {
       return 'Please verify your email before logging in.';
     }
@@ -156,9 +160,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 28),
-                        Center(
+                        const Center(
                           child: Column(
-                            children: const [
+                            children: [
                               Text('🐠', style: TextStyle(fontSize: 84)),
                               SizedBox(height: 10),
                               Text(
