@@ -9,6 +9,7 @@ import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
+import './import_health_screen.dart';
 import 'share_preview_screen.dart';
 
 class AddActivityScreen extends StatefulWidget {
@@ -54,6 +55,46 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
       throw Exception('Can not get PNG byte data from image');
 
     return byteData.buffer.asUint8List();
+  }
+
+  Future<void> _openImport() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final result = await Navigator.push<List<HealthImportItem>>(
+      context,
+      MaterialPageRoute(builder: (_) => const ImportHealthScreen()),
+    );
+
+    if (!mounted || result == null || result.isEmpty) return;
+
+    setState(() => _isSaving = true);
+    try {
+      for (final item in result) {
+        await _firestoreService.saveActivityLog(
+          uid: user.uid,
+          activityType: item.mappedActivityType,
+          durationMinutes: item.durationMinutes,
+          mood: _selectedMood,
+          notes: (item.notes ?? '').trim().isEmpty
+              ? 'Imported from Health (${item.source})\n${item.start.toLocal()} - ${item.end.toLocal()}'
+              : item.notes!.trim(),
+        );
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Imported ${result.length} activities from Health')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   Future<void> _saveActivity() async {
@@ -260,7 +301,28 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _openImport,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryDarkGrey,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'IMPORT FROM HEALTH',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   height: 56,
