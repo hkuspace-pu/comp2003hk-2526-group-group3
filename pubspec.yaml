@@ -1,11 +1,11 @@
 name: screen_time_tracker_with_aquarium
 description: A screen time management app with gamification
 
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -20,6 +20,7 @@ dependencies:
   share_plus: ^12.0.1
   image_picker: ^1.2.1
   file_picker: ^10.3.10
+  health: ^13.3.1
 
 dev_dependencies:
   flutter_test:
@@ -28,14 +29,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/clownfish.png
     - assets/images/blueFish.png
     - assets/images/shrimp.png
     - assets/images/goldFish.png
     - assets/images/puffer.png
-
   # fonts:
   #   - family: Poppins
   #     fonts:
