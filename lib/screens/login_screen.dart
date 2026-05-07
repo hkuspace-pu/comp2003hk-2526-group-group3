@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
+import 'admin_dashboard_screen.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,17 +15,16 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _accountController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
   String? _errorMessage;
-
   String _userType = 'normal';
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _accountController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -37,28 +37,44 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await _authService.login(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      if (_userType == 'admin') {
+        await _authService.loginAsAdmin(
+          email: _accountController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
 
-      if (mounted) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+        );
+      } else {
+        await _authService.login(
+          email: _accountController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
       }
     } on Exception catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = _parseError(e.toString());
       });
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   void _onForgotPassword() async {
+    if (_userType == 'admin') return;
+
     final tempController = TextEditingController(
-      text: _emailController.text.trim(),
+      text: _accountController.text.trim(),
     );
 
     final email = await showDialog<String>(
@@ -101,7 +117,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await _authService.sendPasswordResetEmail(email);
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -120,6 +135,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String _parseError(String error) {
+    if (error.contains('not-admin')) {
+      return 'This account does not have admin access';
+    }
+    if (error.contains('admin-login-failed')) {
+      return 'Unable to sign in as admin';
+    }
     if (error.contains('user-not-found')) {
       return 'No account found with this email';
     }
@@ -132,7 +153,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     if (error.contains('invalid-email')) return 'Invalid email address';
     if (error.contains('invalid-credential')) {
-      return 'Incorrect email or password';
+      return _userType == 'admin'
+          ? 'Incorrect admin account or password'
+          : 'Incorrect email or password';
     }
     if (error.contains('email-not-verified')) {
       return 'Please verify your email before logging in.';
@@ -211,14 +234,27 @@ class _LoginScreenState extends State<LoginScreen> {
                             children: [
                               _UserTypeToggle(
                                 value: _userType,
-                                onChanged: (v) => setState(() => _userType = v),
+                                onChanged: (v) {
+                                  setState(() {
+                                    _userType = v;
+                                    _errorMessage = null;
+                                    _accountController.clear();
+                                    _passwordController.clear();
+                                  });
+                                },
                               ),
                               const SizedBox(height: 16),
                               _buildTextField(
-                                controller: _emailController,
-                                hint: 'Email',
-                                icon: Icons.email,
-                                keyboardType: TextInputType.emailAddress,
+                                controller: _accountController,
+                                hint: _userType == 'admin'
+                                    ? 'Admin Account'
+                                    : 'Email',
+                                icon: _userType == 'admin'
+                                    ? Icons.admin_panel_settings
+                                    : Icons.email,
+                                keyboardType: _userType == 'admin'
+                                    ? TextInputType.text
+                                    : TextInputType.emailAddress,
                               ),
                               const SizedBox(height: 14),
                               _buildTextField(
@@ -265,9 +301,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text(
-                                    'LOGIN',
-                                    style: TextStyle(
+                                : Text(
+                                    _userType == 'admin'
+                                        ? 'ADMIN LOGIN'
+                                        : 'LOGIN',
+                                    style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 0.6,
@@ -276,19 +314,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        Center(
-                          child: TextButton(
-                            onPressed: _onForgotPassword,
-                            child: const Text(
-                              'Forget password?',
-                              style: TextStyle(
-                                color: AppColors.textWhite,
-                                fontWeight: FontWeight.w600,
+                        if (_userType == 'normal') ...[
+                          const SizedBox(height: 10),
+                          Center(
+                            child: TextButton(
+                              onPressed: _onForgotPassword,
+                              child: const Text(
+                                'Forget password?',
+                                style: TextStyle(
+                                  color: AppColors.textWhite,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                         const SizedBox(height: 10),
                       ],
                     ),
