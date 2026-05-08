@@ -9,6 +9,7 @@ import '../models/user_profile.dart';
 class LuckyResult {
   final String fishId;
   final int remainingPoints;
+
   LuckyResult({
     required this.fishId,
     required this.remainingPoints,
@@ -17,7 +18,9 @@ class LuckyResult {
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
   static const int maxAquariumFish = 10;
+
   static String fishKey(String fishId, int level) => '$fishId@$level';
   static bool _isLeveledKey(String key) => key.contains('@');
 
@@ -30,11 +33,9 @@ class FirestoreService {
 
   static Map<String, int> normalizeFishInventory(Map<String, dynamic> raw) {
     final out = <String, int>{};
-
     raw.forEach((k, v) {
       final n = (v is int) ? v : (v is num ? v.toInt() : 0);
       if (n <= 0) return;
-
       if (_isLeveledKey(k)) {
         out[k] = (out[k] ?? 0) + n;
       } else {
@@ -42,7 +43,6 @@ class FirestoreService {
         out[lk] = (out[lk] ?? 0) + n;
       }
     });
-
     return out;
   }
 
@@ -67,6 +67,7 @@ class FirestoreService {
     await _db.collection('users').doc(uid).set({
       'email': email,
       'displayName': displayName,
+      'role': 'user',
       'totalPoints': 0,
       'totalFocusMinutes': 0,
       'sessionCount': 0,
@@ -85,6 +86,13 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+  Future<String?> getUserRole(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists) return null;
+    final data = doc.data();
+    return data?['role'] as String?;
+  }
+
   Future<UserProfile?> getUserProfile(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
     if (!doc.exists) return null;
@@ -93,10 +101,10 @@ class FirestoreService {
 
   Stream<UserProfile?> getUserProfileStream(String uid) {
     final ref = _db.collection('users').doc(uid);
-
     return ref.snapshots().asyncMap((doc) async {
       if (!doc.exists) return null;
       final data = doc.data()!;
+
       bool needWriteBack = false;
 
       if (!data.containsKey('fishInventory')) {
@@ -150,11 +158,9 @@ class FirestoreService {
     required String fishKey,
   }) async {
     final userRef = _db.collection('users').doc(uid);
-
     return _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
-
       final data = snap.data() ?? {};
       final inv = normalizeFishInventory(
         Map<String, dynamic>.from(data['fishInventory'] ?? {}),
@@ -162,14 +168,11 @@ class FirestoreService {
       final tank = normalizeAquariumFish(
         List<dynamic>.from(data['aquariumFish'] ?? const []),
       );
-
       final invCount = inv[fishKey] ?? 0;
       final inTank = tank.where((x) => x == fishKey).length;
       final available = invCount - inTank;
-
       if (tank.length >= maxAquariumFish) return false;
       if (available <= 0) return false;
-
       tank.add(fishKey);
       tx.update(userRef, {
         'aquariumFish': tank,
@@ -187,15 +190,12 @@ class FirestoreService {
     return _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
-
       final data = snap.data() ?? {};
       final tank = normalizeAquariumFish(
         List<dynamic>.from(data['aquariumFish'] ?? const []),
       );
-
       final idx = tank.lastIndexOf(fishKey);
       if (idx < 0) return false;
-
       tank.removeAt(idx);
       tx.update(userRef, {'aquariumFish': tank});
       return true;
@@ -221,28 +221,23 @@ class FirestoreService {
     required List<String> fishIds,
   }) async {
     final userRef = _db.collection('users').doc(uid);
-
     return _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
-
       final data = snap.data() ?? {};
       final inv = normalizeFishInventory(
         Map<String, dynamic>.from(data['fishInventory'] ?? {}),
       );
       final tank = normalizeAquariumFish(List<dynamic>.from(fishIds));
       if (tank.length > maxAquariumFish) return false;
-
       final want = <String, int>{};
       for (final k in tank) {
         want[k] = (want[k] ?? 0) + 1;
       }
-
       for (final e in want.entries) {
         final invCount = inv[e.key] ?? 0;
         if (e.value > invCount) return false;
       }
-
       tx.update(userRef, {
         'aquariumFish': tank,
         'fishInventory': inv,
@@ -253,7 +248,6 @@ class FirestoreService {
 
   Future<int> getDeviceServerTimeSkewSeconds({required String uid}) async {
     final ref = _db.collection('users').doc(uid).collection('timeChecks').doc();
-
     final deviceNow = DateTime.now();
     await ref.set({
       'deviceNow': Timestamp.fromDate(deviceNow),
@@ -263,6 +257,7 @@ class FirestoreService {
 
     DocumentSnapshot<Map<String, dynamic>> snap;
     Timestamp? serverTs;
+
     for (int i = 0; i < 5; i++) {
       snap = await ref.get(const GetOptions(source: Source.server));
       final data = snap.data();
@@ -273,6 +268,7 @@ class FirestoreService {
       }
       await Future.delayed(const Duration(milliseconds: 200));
     }
+
     return 999999;
   }
 
@@ -294,11 +290,11 @@ class FirestoreService {
 
     final userRef = _db.collection('users').doc(uid);
     final userDoc = await userRef.get();
-
     if (!userDoc.exists || userDoc.data() == null) {
       await userRef.set({
         'email': '',
         'displayName': '',
+        'role': 'user',
         'totalPoints': 0,
         'totalFocusMinutes': 0,
         'sessionCount': 0,
@@ -319,7 +315,6 @@ class FirestoreService {
 
     final freshDoc = await userRef.get();
     final data = freshDoc.data() ?? <String, dynamic>{};
-
     final lastActiveDate = data['lastActiveDate'] != null
         ? (data['lastActiveDate'] as Timestamp).toDate()
         : null;
@@ -360,7 +355,6 @@ class FirestoreService {
         .collection('sessions')
         .orderBy('startTime', descending: true)
         .get();
-
     return snapshot.docs
         .map((doc) => FocusSession.fromFirestore(doc.data(), doc.id))
         .toList();
@@ -379,7 +373,6 @@ class FirestoreService {
         .where('startTime', isLessThanOrEqualTo: end)
         .orderBy('startTime', descending: true)
         .get();
-
     return snapshot.docs
         .map((doc) => FocusSession.fromFirestore(doc.data(), doc.id))
         .toList();
@@ -394,11 +387,9 @@ class FirestoreService {
     required bool isFood,
   }) async {
     final userRef = _db.collection('users').doc(uid);
-
     return _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
-
       final data = snap.data() ?? {};
       final currentPoints = (data['totalPoints'] ?? 0) as int;
       if (currentPoints < price) return false;
@@ -435,11 +426,9 @@ class FirestoreService {
   }) async {
     final fishId = _pickWeighted(weights, Random());
     final userRef = _db.collection('users').doc(uid);
-
     return _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return null;
-
       final data = snap.data()!;
       final points = data['totalPoints'] ?? 0;
       if (points < price) return null;
@@ -447,10 +436,8 @@ class FirestoreService {
       final inv = normalizeFishInventory(
         Map<String, dynamic>.from(data['fishInventory'] ?? {}),
       );
-
       final k = fishKey(fishId, 1);
       inv[k] = (inv[k] ?? 0) + 1;
-
       final remaining = points - price;
 
       tx.update(userRef, {
@@ -473,7 +460,6 @@ class FirestoreService {
 
     final total = entries.fold<double>(0, (s, e) => s + e.value);
     final r = rng.nextDouble() * total;
-
     double acc = 0;
     for (final e in entries) {
       acc += e.value;
@@ -496,6 +482,7 @@ class FirestoreService {
   }
 
   static const double _decayPerHour = 2.0;
+
   double computeCurrentHungerPercent({
     required double storedPercent,
     required DateTime? updatedAt,
@@ -503,11 +490,9 @@ class FirestoreService {
   }) {
     final safeStored = storedPercent.clamp(0.0, 100.0);
     if (updatedAt == null) return safeStored;
-
     final currentNow = now ?? DateTime.now();
     final diffMinutes = currentNow.difference(updatedAt).inMinutes;
     if (diffMinutes <= 0) return safeStored;
-
     final decay = (diffMinutes / 60.0) * _decayPerHour;
     final current = (safeStored - decay).clamp(0.0, 100.0);
     return current;
@@ -521,7 +506,6 @@ class FirestoreService {
     required String notes,
   }) async {
     final points = (durationMinutes * 1.5).round();
-
     await _db.collection('users').doc(uid).collection('activities').add({
       'uid': uid,
       'activityType': activityType,
@@ -553,7 +537,6 @@ class FirestoreService {
         .collection('activities')
         .orderBy('loggedAt', descending: true)
         .get();
-
     return snapshot.docs
         .map((doc) => ActivityLog.fromFirestore(doc.data(), doc.id))
         .toList();
@@ -564,6 +547,7 @@ class FirestoreService {
     final sessions = await getFocusSessions(uid);
     final activities = await getActivityLogs(uid);
     final profileData = userDoc.data()!;
+
     final cleanProfile = profileData.map((key, value) {
       if (value is Timestamp) {
         return MapEntry(key, value.toDate().toIso8601String());
@@ -605,7 +589,6 @@ class FirestoreService {
     if (profile != null) {
       final invRaw = Map<String, dynamic>.from(profile['fishInventory'] ?? {});
       final inv = normalizeFishInventory(invRaw);
-
       await _db.collection('users').doc(uid).update({
         'totalPoints': profile['totalPoints'] ?? 0,
         'totalFocusMinutes': profile['totalFocusMinutes'] ?? 0,
@@ -680,11 +663,9 @@ class FirestoreService {
 
   Future<bool> feedFish(String uid) async {
     final userRef = _db.collection('users').doc(uid);
-
     return _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
-
       final data = snap.data() ?? {};
       final currentFood = (data['foodStock'] ?? 0) as int;
       if (currentFood <= 0) return false;
@@ -692,12 +673,10 @@ class FirestoreService {
       final stored = (data['hungerPercent'] ?? 100).toDouble();
       final ts = data['hungerUpdatedAt'];
       final updatedAt = ts is Timestamp ? ts.toDate() : null;
-
       final currentHunger = computeCurrentHungerPercent(
         storedPercent: stored,
         updatedAt: updatedAt,
       );
-
       final newHunger = (currentHunger + 10.0).clamp(0.0, 100.0);
 
       tx.update(userRef, {
@@ -705,7 +684,6 @@ class FirestoreService {
         'hungerPercent': newHunger,
         'hungerUpdatedAt': FieldValue.serverTimestamp(),
       });
-
       return true;
     });
   }
@@ -718,11 +696,9 @@ class FirestoreService {
     int cost = 3,
   }) async {
     final userRef = _db.collection('users').doc(uid);
-
     return _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
-
       final data = snap.data() ?? {};
       final inv = normalizeFishInventory(
         Map<String, dynamic>.from(data['fishInventory'] ?? {}),
@@ -730,19 +706,14 @@ class FirestoreService {
       final tank = normalizeAquariumFish(
         List<dynamic>.from(data['aquariumFish'] ?? const []),
       );
-
       final fromKey = fishKey(fishId, fromLevel);
       final toKey = fishKey(fishId, toLevel);
-
       final invCount = inv[fromKey] ?? 0;
       final inTank = tank.where((x) => x == fromKey).length;
       final available = invCount - inTank;
-
       if (available < cost) return false;
-
       inv[fromKey] = invCount - cost;
       inv[toKey] = (inv[toKey] ?? 0) + 1;
-
       tx.update(userRef, {'fishInventory': inv});
       return true;
     });
