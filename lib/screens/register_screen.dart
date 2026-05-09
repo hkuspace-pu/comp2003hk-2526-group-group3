@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 
@@ -11,6 +12,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final AuthService _authService = AuthService();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _displayNameController = TextEditingController();
@@ -19,6 +21,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedRole = 'user';
   bool _sendVerificationEmail = true;
   bool _forcePasswordReset = false;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -29,11 +33,113 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+
+    final displayName = _displayNameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final notes = _notesController.text.trim();
+
+    if (displayName.isEmpty || email.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please fill in display name, email, and password.';
+      });
+      return;
+    }
+
+    if (!email.contains('@')) {
+      setState(() {
+        _errorMessage = 'Please enter a valid email address.';
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() {
+        _errorMessage = 'Password must be at least 6 characters.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await _authService.createUserByAdmin(
+        email: email,
+        password: password,
+        displayName: displayName,
+        role: _selectedRole,
+        sendVerificationEmail: _sendVerificationEmail,
+        requirePasswordReset: _forcePasswordReset,
+        adminNotes: notes,
+      );
+
+      if (!mounted) return;
+
+      _displayNameController.clear();
+      _emailController.clear();
+      _passwordController.clear();
+      _notesController.clear();
+
+      setState(() {
+        _selectedRole = 'user';
+        _sendVerificationEmail = true;
+        _forcePasswordReset = false;
+      });
+
+      final verifyText =
+          _sendVerificationEmail ? ' Verification email sent.' : '';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Account created successfully for $displayName ($email).$verifyText',
+          ),
+        ),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = _parseError(e.toString());
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _parseError(String error) {
+    if (error.contains('email-already-in-use')) {
+      return 'This email is already registered.';
+    }
+    if (error.contains('weak-password')) {
+      return 'Password must be at least 6 characters.';
+    }
+    if (error.contains('invalid-email')) {
+      return 'Invalid email address.';
+    }
+    if (error.contains('admin-not-authenticated')) {
+      return 'Current admin session is not valid. Please login again.';
+    }
+    if (error.contains('permission-denied')) {
+      return 'You do not have permission to create this account.';
+    }
+    if (error.contains('user-create-failed')) {
+      return 'Unable to create the new account.';
+    }
+    return 'Something went wrong while creating the account.';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Reigistration'),
+        title: const Text('User Registration'),
       ),
       body: GradientBackground(
         child: SafeArea(
@@ -106,33 +212,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ],
               ),
               const SizedBox(height: 24),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
                     child: SizedBox(
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Create account flow can be developed next.')),
-                          );
-                        },
+                        onPressed: _isLoading ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryDarkGrey,
+                          disabledBackgroundColor:
+                              AppColors.primaryDarkGrey.withValues(alpha: 0.70),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'CREATE ACCOUNT',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.4,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'CREATE ACCOUNT',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
                       ),
                     ),
                   ),
