@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 import 'login_screen.dart';
+import 'register_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -36,17 +37,33 @@ class AdminDashboardScreen extends StatelessWidget {
                                   icon: '👤',
                                   label: 'Registration',
                                   subtitle: 'Create accounts',
-                                  onTapMessage: '',
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const RegisterScreen(),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _buildActionCard(
                                   context,
-                                  icon: '⚙️',
+                                  icon: '🪪',
                                   label: 'User Management',
                                   subtitle: 'Manage user accounts',
-                                  onTapMessage: '',
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const RegisterScreen(),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ],
@@ -62,7 +79,15 @@ class AdminDashboardScreen extends StatelessWidget {
                                   label: 'Evidence Approve',
                                   subtitle:
                                       'Review and approve submitted evidence',
-                                  onTapMessage: '',
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const RegisterScreen(),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -72,7 +97,15 @@ class AdminDashboardScreen extends StatelessWidget {
                                   icon: '📊',
                                   label: 'Reports',
                                   subtitle: 'Review usage trends',
-                                  onTapMessage: '',
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const RegisterScreen(),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ],
@@ -127,13 +160,15 @@ class AdminDashboardScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
+                letterSpacing: 0.6,
+                color: AppColors.textWhite,
               ),
             ),
             style: ElevatedButton.styleFrom(
               foregroundColor: Colors.red,
               side: const BorderSide(color: Colors.red, width: 2),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
           ),
@@ -147,15 +182,11 @@ class AdminDashboardScreen extends StatelessWidget {
     required String icon,
     required String label,
     required String subtitle,
-    required String onTapMessage,
+    required VoidCallback onTap,
     double height = 110,
   }) {
     return InkWell(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(onTapMessage)),
-        );
-      },
+      onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         height: height,
