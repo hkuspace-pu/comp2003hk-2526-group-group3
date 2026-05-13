@@ -41,48 +41,47 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBG9vtMS_mwWgwQDhy8ygF1O2EgvD6QfX0',
-    appId: '1:687897477415:android:09842ff013b37acc4b6902',
-    messagingSenderId: '687897477415',
-    projectId: 'aquariumapp-707aa',
-    storageBucket: 'aquariumapp-707aa.firebasestorage.app',
+    apiKey: 'AIzaSyDTK-HOr4wnudpnZxhDzFnsBq-VlXcBLk4',
+    appId: '1:462764864604:android:a6bbec99cd8713d95ca299',
+    messagingSenderId: '462764864604',
+    projectId: 'focus-aquarium',
+    storageBucket: 'focus-aquarium.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBEq9J7ebCkP4PFa4w3eWmKEw4RYgTXiUQ',
-    appId: '1:687897477415:ios:3a74811a733ee5c34b6902',
-    messagingSenderId: '687897477415',
-    projectId: 'aquariumapp-707aa',
-    storageBucket: 'aquariumapp-707aa.firebasestorage.app',
+    apiKey: 'AIzaSyBzZid9MMFCnxvVGVQh0yvmnnce76-nh2U',
+    appId: '1:462764864604:ios:50af122604568c345ca299',
+    messagingSenderId: '462764864604',
+    projectId: 'focus-aquarium',
+    storageBucket: 'focus-aquarium.firebasestorage.app',
     iosBundleId: 'com.example.screenTimeTrackerWithAquarium',
   );
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCmnRNunjiYZ8qV2fQq1Ho2NwwIPUmO09E',
-    appId: '1:687897477415:web:18d575142a0fa64a4b6902',
-    messagingSenderId: '687897477415',
-    projectId: 'aquariumapp-707aa',
-    authDomain: 'aquariumapp-707aa.firebaseapp.com',
-    storageBucket: 'aquariumapp-707aa.firebasestorage.app',
-    measurementId: 'G-PGYZS9CBCT',
+    apiKey: 'AIzaSyD8qk8v1HTgAHEhAb-PcIhHlC_mYnAXJN8',
+    appId: '1:462764864604:web:3fc815f7277dddfb5ca299',
+    messagingSenderId: '462764864604',
+    projectId: 'focus-aquarium',
+    authDomain: 'focus-aquarium.firebaseapp.com',
+    storageBucket: 'focus-aquarium.firebasestorage.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBEq9J7ebCkP4PFa4w3eWmKEw4RYgTXiUQ',
-    appId: '1:687897477415:ios:3a74811a733ee5c34b6902',
-    messagingSenderId: '687897477415',
-    projectId: 'aquariumapp-707aa',
-    storageBucket: 'aquariumapp-707aa.firebasestorage.app',
+    apiKey: 'AIzaSyBzZid9MMFCnxvVGVQh0yvmnnce76-nh2U',
+    appId: '1:462764864604:ios:50af122604568c345ca299',
+    messagingSenderId: '462764864604',
+    projectId: 'focus-aquarium',
+    storageBucket: 'focus-aquarium.firebasestorage.app',
     iosBundleId: 'com.example.screenTimeTrackerWithAquarium',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCmnRNunjiYZ8qV2fQq1Ho2NwwIPUmO09E',
-    appId: '1:687897477415:web:7e9e9034ddaa83a74b6902',
-    messagingSenderId: '687897477415',
-    projectId: 'aquariumapp-707aa',
-    authDomain: 'aquariumapp-707aa.firebaseapp.com',
-    storageBucket: 'aquariumapp-707aa.firebasestorage.app',
-    measurementId: 'G-B3V154128N',
+    apiKey: 'AIzaSyD8qk8v1HTgAHEhAb-PcIhHlC_mYnAXJN8',
+    appId: '1:462764864604:web:e08b91e1873eb9445ca299',
+    messagingSenderId: '462764864604',
+    projectId: 'focus-aquarium',
+    authDomain: 'focus-aquarium.firebaseapp.com',
+    storageBucket: 'focus-aquarium.firebasestorage.app',
   );
+
 }

@@ -2,6 +2,7 @@ class UserProfile {
   final String uid;
   final String email;
   final String displayName;
+  final String role;
   final int totalPoints;
   final int totalFocusMinutes;
   final int sessionCount;
@@ -17,10 +18,11 @@ class UserProfile {
   final Map<String, int> fishInventory;
   final List<String> aquariumFish;
 
-  UserProfile({
+  const UserProfile({
     required this.uid,
     required this.email,
     required this.displayName,
+    required this.role,
     required this.totalPoints,
     required this.totalFocusMinutes,
     required this.sessionCount,
@@ -37,14 +39,16 @@ class UserProfile {
     required this.aquariumFish,
   });
 
+  bool get isAdmin => role == 'admin';
+
   factory UserProfile.fromFirestore(Map<String, dynamic> data, String uid) {
     final createdAt = data['createdAt']?.toDate() ?? DateTime.now();
     final hungerPercent = (data['hungerPercent'] ?? 100).toDouble();
     final hungerUpdatedAt = data['hungerUpdatedAt']?.toDate() ?? createdAt;
-
     final ownedFish = List<String>.from(data['ownedFish'] ?? const <String>[]);
     final invRaw = (data['fishInventory'] as Map?)?.cast<String, dynamic>() ??
         const <String, dynamic>{};
+
     final fishInventory = <String, int>{};
     invRaw.forEach((k, v) {
       if (v is int) {
@@ -69,6 +73,7 @@ class UserProfile {
       uid: uid,
       email: data['email'] ?? '',
       displayName: data['displayName'] ?? 'User',
+      role: data['role'] ?? 'user',
       totalPoints: data['totalPoints'] ?? 0,
       totalFocusMinutes: data['totalFocusMinutes'] ?? 0,
       sessionCount: data['sessionCount'] ?? 0,
@@ -78,8 +83,8 @@ class UserProfile {
       ownedFish: List<String>.from(data['ownedFish'] ?? []),
       ownedDecorations: List<String>.from(data['ownedDecorations'] ?? []),
       foodStock: data['foodStock'] ?? 0,
-      createdAt: data['createdAt']?.toDate() ?? DateTime.now(),
-      hungerPercent: hungerPercent.clamp(0, 100),
+      createdAt: createdAt,
+      hungerPercent: hungerPercent.clamp(0, 100).toDouble(),
       hungerUpdatedAt: hungerUpdatedAt,
       fishInventory: fishInventory,
       aquariumFish: aquariumFish,
@@ -90,6 +95,7 @@ class UserProfile {
     return {
       'email': email,
       'displayName': displayName,
+      'role': role,
       'totalPoints': totalPoints,
       'totalFocusMinutes': totalFocusMinutes,
       'sessionCount': sessionCount,
@@ -108,6 +114,7 @@ class UserProfile {
   }
 
   UserProfile copyWith({
+    String? role,
     int? totalPoints,
     int? totalFocusMinutes,
     int? sessionCount,
@@ -126,6 +133,7 @@ class UserProfile {
       uid: uid,
       email: email,
       displayName: displayName,
+      role: role ?? this.role,
       totalPoints: totalPoints ?? this.totalPoints,
       totalFocusMinutes: totalFocusMinutes ?? this.totalFocusMinutes,
       sessionCount: sessionCount ?? this.sessionCount,
