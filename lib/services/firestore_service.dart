@@ -75,6 +75,8 @@ class FirestoreService {
       'requirePasswordResetOnFirstLogin': requirePasswordResetOnFirstLogin,
       'adminNotes': adminNotes,
       'createdByUid': createdByUid,
+      'isDisabled': false,
+      'updatedAt': FieldValue.serverTimestamp(),
       'totalPoints': 0,
       'totalFocusMinutes': 0,
       'sessionCount': 0,
@@ -91,6 +93,59 @@ class FirestoreService {
       'hungerUpdatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> getAllUsersStream() {
+    return _db
+        .collection('users')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Future<void> setUserDisabled({
+    required String uid,
+    required bool disabled,
+  }) async {
+    await _db.collection('users').doc(uid).update({
+      'isDisabled': disabled,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateManagedUser({
+    required String uid,
+    required String displayName,
+    required String email,
+    required String role,
+    required bool requirePasswordResetOnFirstLogin,
+    String? adminNotes,
+  }) async {
+    await _db.collection('users').doc(uid).update({
+      'displayName': displayName,
+      'email': email,
+      'role': role,
+      'requirePasswordResetOnFirstLogin': requirePasswordResetOnFirstLogin,
+      'adminNotes': adminNotes,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteManagedUser(String uid) async {
+    final userRef = _db.collection('users').doc(uid);
+    final sessions = await userRef.collection('sessions').get();
+    for (final doc in sessions.docs) {
+      await doc.reference.delete();
+    }
+    final activities = await userRef.collection('activities').get();
+    for (final doc in activities.docs) {
+      await doc.reference.delete();
+    }
+    final timeChecks = await userRef.collection('timeChecks').get();
+    for (final doc in timeChecks.docs) {
+      await doc.reference.delete();
+    }
+    await userRef.delete();
   }
 
   Future<String?> getUserRole(String uid) async {
