@@ -471,21 +471,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                                 _MetaBadge(
                                                   label: role.toUpperCase(),
                                                   color: role == 'admin'
-                                                      ? AppColors.accentOrange
-                                                      : Colors.blueAccent,
+                                                      ? const Color(0xFFFF8A3D)
+                                                      : const Color(0xFF3B82F6),
                                                 ),
                                                 _MetaBadge(
                                                   label: isDisabled
                                                       ? 'DISABLED'
                                                       : 'ENABLED',
                                                   color: isDisabled
-                                                      ? Colors.redAccent
-                                                      : Colors.green,
+                                                      ? const Color(0xFFFF4D67)
+                                                      : const Color(0xFF22C55E),
                                                 ),
                                                 if (requireReset)
                                                   const _MetaBadge(
                                                     label: 'RESET ON LOGIN',
-                                                    color: Colors.amber,
+                                                    color: Color(0xFFF59E0B),
                                                   ),
                                               ],
                                             ),
@@ -535,7 +535,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       _ActionButton(
                                         icon: Icons.delete,
                                         label: 'Remove',
-                                        labelColor: AppColors.textRed,
+                                        labelColor: const Color(0xFFFF4D67),
+                                        iconColor: const Color(0xFFFF4D67),
                                         color: AppColors.primaryDarkGrey,
                                         fullWidth: true,
                                         onPressed: isBusy
@@ -620,7 +621,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               border: InputBorder.none,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              hintText: 'Search by name, email, or uid',
+              hintText: 'Search by name, email',
               hintStyle: const TextStyle(color: AppColors.textGrey),
               prefixIcon: const Icon(Icons.search, color: AppColors.textGrey),
               suffixIcon: _searchQuery.isEmpty
@@ -900,18 +901,18 @@ class _MetaBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -926,6 +927,7 @@ class _ActionButton extends StatelessWidget {
     required this.color,
     required this.onPressed,
     this.fullWidth = false,
+    this.iconColor,
   });
 
   final IconData icon;
@@ -934,9 +936,12 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final VoidCallback? onPressed;
   final bool fullWidth;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveIconColor = iconColor ?? labelColor;
+
     final button = ElevatedButton.icon(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
@@ -947,10 +952,18 @@ class _ActionButton extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
-      icon: Icon(icon, size: 18),
+      icon: Icon(
+        icon,
+        size: 18,
+        color: effectiveIconColor,
+      ),
       label: Text(
         label,
-        style: TextStyle(color: labelColor, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: labelColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 15,
+        ),
       ),
     );
 
