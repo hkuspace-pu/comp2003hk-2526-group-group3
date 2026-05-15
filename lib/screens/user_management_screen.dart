@@ -471,8 +471,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                                 _MetaBadge(
                                                   label: role.toUpperCase(),
                                                   color: role == 'admin'
-                                                      ? const Color(0xFFFF8A3D)
-                                                      : const Color(0xFF3B82F6),
+                                                      ? AppColors.accentOrange
+                                                      : AppColors.accentGold,
                                                 ),
                                                 _MetaBadge(
                                                   label: isDisabled
@@ -518,12 +518,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                         icon: isDisabled
                                             ? Icons.check_circle
                                             : Icons.block,
-                                        label:
-                                            isDisabled ? 'Enable' : 'Disable',
+                                        label: role == 'admin'
+                                            ? 'Protected'
+                                            : (isDisabled
+                                                ? 'Enable'
+                                                : 'Disable'),
                                         color: AppColors.primaryDarkGrey,
-                                        labelColor: AppColors.accentOrange,
+                                        labelColor: role == 'admin'
+                                            ? Colors.white54
+                                            : AppColors.accentOrange,
+                                        iconColor: role == 'admin'
+                                            ? Colors.white54
+                                            : AppColors.accentOrange,
                                         fullWidth: true,
-                                        onPressed: isBusy
+                                        onPressed: (isBusy || role == 'admin')
                                             ? null
                                             : () => _toggleUserStatus(
                                                   uid: doc.id,
@@ -535,11 +543,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       _ActionButton(
                                         icon: Icons.delete,
                                         label: 'Remove',
-                                        labelColor: const Color(0xFFFF4D67),
-                                        iconColor: const Color(0xFFFF4D67),
-                                        color: AppColors.primaryDarkGrey,
+                                        labelColor: AppColors.textWhite,
+                                        iconColor: AppColors.textWhite,
+                                        color: AppColors.textRed,
                                         fullWidth: true,
-                                        onPressed: isBusy
+                                        onPressed: (isBusy || role == 'admin')
                                             ? null
                                             : () => _removeUser(
                                                   uid: doc.id,
