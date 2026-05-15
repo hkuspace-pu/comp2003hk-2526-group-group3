@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:focusaquarium/screens/user_management_screen.dart';
 
 import '../services/auth_service.dart';
 import '../utils/colors.dart';
@@ -60,7 +61,7 @@ class AdminDashboardScreen extends StatelessWidget {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
-                                            const RegisterScreen(),
+                                            const UserManagementScreen(),
                                       ),
                                     );
                                   },

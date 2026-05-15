@@ -10,6 +10,7 @@ class AppColors {
   static const Color cardBackground = Color(0x33FFFFFF);
   static const Color textWhite = Color(0xFFFFFFFF);
   static const Color textGrey = Color.fromRGBO(187, 187, 187, 1);
+  static const Color textRed = Color(0xFFFF5252);
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
