@@ -1,6 +1,8 @@
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:typed_data';
 
 import '../models/activity_log.dart';
 import '../models/focus_session.dart';
@@ -18,6 +20,7 @@ class LuckyResult {
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static const int maxAquariumFish = 10;
 
@@ -59,6 +62,88 @@ class FirestoreService {
     return out;
   }
 
+  Future<Map<String, String>> uploadActivityEvidence({
+    required String uid,
+    required Uint8List bytes,
+    required String evidenceType,
+    required String originalFileName,
+  }) async {
+    final safeFileName = _sanitizeStorageFileName(originalFileName);
+    final extension = _extractFileExtension(safeFileName);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final storagePath =
+        'activity_evidence/$uid/${timestamp}_${evidenceType.toLowerCase()}.$extension';
+
+    final ref = _storage.ref().child(storagePath);
+    final metadata = SettableMetadata(
+      contentType: _guessEvidenceContentType(
+        fileName: safeFileName,
+        evidenceType: evidenceType,
+      ),
+      customMetadata: {
+        'uid': uid,
+        'evidenceType': evidenceType,
+        'originalFileName': originalFileName,
+      },
+    );
+
+    await ref.putData(bytes, metadata);
+    final downloadUrl = await ref.getDownloadURL();
+
+    return {
+      'url': downloadUrl,
+      'path': storagePath,
+      'fileName': originalFileName,
+      'contentType': metadata.contentType ?? '',
+    };
+  }
+
+  String _sanitizeStorageFileName(String fileName) {
+    final trimmed = fileName.trim();
+    if (trimmed.isEmpty) return 'evidence_file';
+    return trimmed.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+  }
+
+  String _extractFileExtension(String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex <= 0 || dotIndex == fileName.length - 1) {
+      return 'bin';
+    }
+    return fileName.substring(dotIndex + 1).toLowerCase();
+  }
+
+  String _guessEvidenceContentType({
+    required String fileName,
+    required String evidenceType,
+  }) {
+    final ext = _extractFileExtension(fileName);
+
+    const imageMap = <String, String>{
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'bmp': 'image/bmp',
+      'heic': 'image/heic',
+      'heif': 'image/heif',
+    };
+
+    const videoMap = <String, String>{
+      'mp4': 'video/mp4',
+      'mov': 'video/quicktime',
+      'avi': 'video/x-msvideo',
+      'mkv': 'video/x-matroska',
+      'webm': 'video/webm',
+      '3gp': 'video/3gpp',
+      'm4v': 'video/x-m4v',
+    };
+
+    if (imageMap.containsKey(ext)) return imageMap[ext]!;
+    if (videoMap.containsKey(ext)) return videoMap[ext]!;
+    return evidenceType.toLowerCase() == 'video' ? 'video/mp4' : 'image/jpeg';
+  }
+
   Future<void> createUserProfile({
     required String uid,
     required String email,
@@ -94,7 +179,6 @@ class FirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
-
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getAllUsersStream() {
     return _db
@@ -549,8 +633,14 @@ class FirestoreService {
     required int durationMinutes,
     required String mood,
     required String notes,
+    String? evidenceUrl,
+    String? evidenceType,
+    String? evidenceStoragePath,
+    String? evidenceFileName,
+    String? evidenceContentType,
   }) async {
     final points = (durationMinutes * 1.5).round();
+
     await _db.collection('users').doc(uid).collection('activities').add({
       'uid': uid,
       'activityType': activityType,
@@ -559,13 +649,25 @@ class FirestoreService {
       'notes': notes,
       'pointsEarned': points,
       'loggedAt': DateTime.now(),
+      'evidenceUrl': evidenceUrl,
+      'evidenceType': evidenceType,
+      'evidenceStoragePath': evidenceStoragePath,
+      'evidenceFileName': evidenceFileName,
+      'evidenceContentType': evidenceContentType,
+      'hasEvidence': evidenceUrl != null,
+      'evidenceStatus': evidenceUrl != null ? 'pending' : null,
+      'evidenceReviewedAt': null,
+      'evidenceReviewedByUid': null,
+      'evidenceReviewNote': null,
     });
+
     final userDoc = await _db.collection('users').doc(uid).get();
     final data = userDoc.data()!;
     final currentPoints = data['totalPoints'] ?? 0;
     final currentActivities = data['activityCount'] ?? 0;
     final newPoints = currentPoints + points;
     final newLevel = _calculateLevel(newPoints);
+
     await _db.collection('users').doc(uid).update({
       'totalPoints': newPoints,
       'activityCount': currentActivities + 1,

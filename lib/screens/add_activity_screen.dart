@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:image_picker/image_picker.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,10 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
   final TextEditingController _durationController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+
+  final ImagePicker _picker = ImagePicker();
+  XFile? _selectedEvidence;
+  String? _selectedEvidenceType;
 
   bool _isSaving = false;
 
@@ -97,6 +102,262 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
     }
   }
 
+
+
+  Future<void> _pickEvidence(ImageSource source, {required bool isVideo}) async {
+    try {
+      final XFile? picked = isVideo
+          ? await _picker.pickVideo(source: source)
+          : await _picker.pickImage(source: source, imageQuality: 85);
+      if (picked == null || !mounted) return;
+      setState(() {
+        _selectedEvidence = picked;
+        _selectedEvidenceType = isVideo ? 'video' : 'image';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to select evidence: $e')),
+      );
+    }
+  }
+
+  Future<void> _showEvidencePicker() async {
+    FocusScope.of(context).unfocus();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.primaryDarkGrey,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        Widget option({
+          required IconData icon,
+          required String title,
+          required VoidCallback onTap,
+        }) {
+          return ListTile(
+            leading: Icon(icon, color: AppColors.accentOrange),
+            title: Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.textWhite,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            onTap: onTap,
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textGrey.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Upload Evidence',
+                style: TextStyle(
+                  color: AppColors.textWhite,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Choose an image or video as supporting evidence.',
+                style: TextStyle(
+                  color: AppColors.textGrey,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 10),
+              option(
+                icon: Icons.photo_library_outlined,
+                title: 'Pick Image from Gallery',
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickEvidence(ImageSource.gallery, isVideo: false);
+                },
+              ),
+              option(
+                icon: Icons.videocam_outlined,
+                title: 'Pick Video from Gallery',
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickEvidence(ImageSource.gallery, isVideo: true);
+                },
+              ),
+              option(
+                icon: Icons.camera_alt_outlined,
+                title: 'Take Photo',
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickEvidence(ImageSource.camera, isVideo: false);
+                },
+              ),
+              option(
+                icon: Icons.smart_display_outlined,
+                title: 'Record Video',
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickEvidence(ImageSource.camera, isVideo: true);
+                },
+              ),
+              if (_selectedEvidence != null)
+                option(
+                  icon: Icons.delete_outline,
+                  title: 'Remove Selected Evidence',
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _selectedEvidence = null;
+                      _selectedEvidenceType = null;
+                    });
+                  },
+                ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEvidenceSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Evidence (optional)',
+          style: TextStyle(
+            color: AppColors.textWhite,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.textWhite.withValues(alpha: 0.10),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Add a photo or video as proof for this activity.',
+                style: TextStyle(
+                  color: AppColors.textGrey,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: _isSaving ? null : _showEvidencePicker,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryDarkGrey,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.upload_file),
+                  label: Text(
+                    _selectedEvidence == null
+                        ? 'UPLOAD EVIDENCE'
+                        : 'CHANGE EVIDENCE',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+              if (_selectedEvidence != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryDarkGrey.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _selectedEvidenceType == 'video'
+                            ? Icons.movie_creation_outlined
+                            : Icons.image_outlined,
+                        color: AppColors.accentOrange,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedEvidenceType == 'video'
+                                  ? 'Selected video'
+                                  : 'Selected image',
+                              style: const TextStyle(
+                                color: AppColors.textWhite,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _selectedEvidence!.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.textGrey,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _isSaving
+                            ? null
+                            : () {
+                                setState(() {
+                                  _selectedEvidence = null;
+                                  _selectedEvidenceType = null;
+                                });
+                              },
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _saveActivity() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -111,18 +372,48 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
     setState(() => _isSaving = true);
 
-    await _firestoreService.saveActivityLog(
-      uid: user.uid,
-      activityType: _selectedActivity,
-      durationMinutes: duration,
-      mood: _selectedMood,
-      notes: _notesController.text.trim(),
-    );
-
-    final points = (duration * 1.5).round();
-
     try {
-      setState(() => _isSaving = false);
+      String? evidenceUrl;
+      String? evidencePath;
+      String? evidenceFileName;
+      String? evidenceContentType;
+
+      if (_selectedEvidence != null && _selectedEvidenceType != null) {
+        final evidenceBytes = await _selectedEvidence!.readAsBytes();
+        final uploadResult = await _firestoreService.uploadActivityEvidence(
+          uid: user.uid,
+          bytes: evidenceBytes,
+          evidenceType: _selectedEvidenceType!,
+          originalFileName: _selectedEvidence!.name,
+        );
+        evidenceUrl = uploadResult['url'];
+        evidencePath = uploadResult['path'];
+        evidenceFileName = uploadResult['fileName'];
+        evidenceContentType = uploadResult['contentType'];
+      }
+
+      await _firestoreService.saveActivityLog(
+        uid: user.uid,
+        activityType: _selectedActivity,
+        durationMinutes: duration,
+        mood: _selectedMood,
+        notes: _notesController.text.trim(),
+        evidenceUrl: evidenceUrl,
+        evidenceType: _selectedEvidenceType,
+        evidenceStoragePath: evidencePath,
+        evidenceFileName: evidenceFileName,
+        evidenceContentType: evidenceContentType,
+      );
+
+      final points = (duration * 1.5).round();
+
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+          _selectedEvidence = null;
+          _selectedEvidenceType = null;
+        });
+      }
       await WidgetsBinding.instance.endOfFrame;
       final bytes = await _captureFormBytes();
 
@@ -142,7 +433,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
       if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved, but capture failed: $e')),
+        SnackBar(content: Text('Failed to save activity: $e')),
       );
     }
   }
@@ -297,6 +588,8 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        _buildEvidenceSection(),
                       ],
                     ),
                   ),
