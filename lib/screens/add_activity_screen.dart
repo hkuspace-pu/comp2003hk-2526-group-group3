@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/firestore_service.dart';
 import '../utils/colors.dart';
@@ -22,6 +24,7 @@ class AddActivityScreen extends StatefulWidget {
 class _AddActivityScreenState extends State<AddActivityScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final GlobalKey _formCaptureKey = GlobalKey();
+  final ImagePicker _imagePicker = ImagePicker();
 
   String _selectedActivity = AppConstants.activityTypes[0];
   String _selectedMood = AppConstants.moods[0];
@@ -30,12 +33,100 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   final TextEditingController _notesController = TextEditingController();
 
   bool _isSaving = false;
+  File? _selectedPhoto;
 
   @override
   void dispose() {
     _durationController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 80,
+      );
+      if (picked != null) {
+        setState(() => _selectedPhoto = File(picked.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
+
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.primaryDarkGrey,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textGrey,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Add Photo Evidence',
+              style: TextStyle(
+                color: AppColors.textWhite,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading:
+                  const Icon(Icons.camera_alt, color: AppColors.accentOrange),
+              title: const Text('Take Photo',
+                  style: TextStyle(color: AppColors.textWhite)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library,
+                  color: AppColors.accentOrange),
+              title: const Text('Choose from Gallery',
+                  style: TextStyle(color: AppColors.textWhite)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.gallery);
+              },
+            ),
+            if (_selectedPhoto != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove Photo',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() => _selectedPhoto = null);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<Uint8List> _captureFormBytes() async {
@@ -117,6 +208,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
       durationMinutes: duration,
       mood: _selectedMood,
       notes: _notesController.text.trim(),
+      photoPath: _selectedPhoto?.path,
     );
 
     final points = (duration * 1.5).round();
@@ -299,6 +391,84 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                         ),
                       ],
                     ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Photo Evidence
+                const Text(
+                  'Photo Evidence (optional)',
+                  style: TextStyle(
+                    color: AppColors.textWhite,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _showPhotoOptions,
+                  child: Container(
+                    width: double.infinity,
+                    height: _selectedPhoto != null ? 200 : 100,
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBackground,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.accentOrange.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: _selectedPhoto != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.file(
+                                  _selectedPhoto!,
+                                  fit: BoxFit.cover,
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        setState(() => _selectedPhoto = null),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black54,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(
+                                Icons.add_a_photo_outlined,
+                                color: AppColors.accentOrange,
+                                size: 32,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Tap to add photo evidence',
+                                style: TextStyle(
+                                  color: AppColors.textGrey,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
                 const SizedBox(height: 16),

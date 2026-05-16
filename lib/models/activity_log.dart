@@ -7,6 +7,7 @@ class ActivityLog {
   final String notes;
   final int pointsEarned;
   final DateTime loggedAt;
+  final String? photoUrl;
 
   ActivityLog({
     this.id,
@@ -17,6 +18,7 @@ class ActivityLog {
     required this.notes,
     required this.pointsEarned,
     required this.loggedAt,
+    this.photoUrl,
   });
 
   factory ActivityLog.fromFirestore(Map<String, dynamic> data, String id) {
@@ -29,6 +31,7 @@ class ActivityLog {
       notes: data['notes'] ?? '',
       pointsEarned: data['pointsEarned'] ?? 0,
       loggedAt: data['loggedAt']?.toDate() ?? DateTime.now(),
+      photoUrl: data['photoUrl'],
     );
   }
 
@@ -41,6 +44,7 @@ class ActivityLog {
       'notes': notes,
       'pointsEarned': pointsEarned,
       'loggedAt': loggedAt,
+      if (photoUrl != null) 'photoUrl': photoUrl,
     };
   }
 }

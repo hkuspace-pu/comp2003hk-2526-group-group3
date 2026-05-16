@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../models/activity_log.dart';
 import '../models/focus_session.dart';
@@ -543,14 +545,35 @@ class FirestoreService {
     return current;
   }
 
+  Future<String?> uploadActivityPhoto(String uid, String filePath) async {
+    try {
+      final file = File(filePath);
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('activity_photos')
+          .child(uid)
+          .child(fileName);
+      await ref.putFile(file);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> saveActivityLog({
     required String uid,
     required String activityType,
     required int durationMinutes,
     required String mood,
     required String notes,
+    String? photoPath,
   }) async {
     final points = (durationMinutes * 1.5).round();
+    String? photoUrl;
+    if (photoPath != null) {
+      photoUrl = await uploadActivityPhoto(uid, photoPath);
+    }
     await _db.collection('users').doc(uid).collection('activities').add({
       'uid': uid,
       'activityType': activityType,
@@ -559,6 +582,7 @@ class FirestoreService {
       'notes': notes,
       'pointsEarned': points,
       'loggedAt': DateTime.now(),
+      if (photoUrl != null) 'photoUrl': photoUrl,
     });
     final userDoc = await _db.collection('users').doc(uid).get();
     final data = userDoc.data()!;
