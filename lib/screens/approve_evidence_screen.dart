@@ -7,6 +7,14 @@ import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 
+// String _normalizeEvidenceUrl(String url) {
+//   return url
+//       .replaceAll('&amp;', '&')
+//       .replaceAll('&#38;', '&')
+//       .replaceAll('&quot;', '"')
+//       .replaceAll('&#34;', '"');
+// }
+
 class ApproveEvidenceScreen extends StatefulWidget {
   const ApproveEvidenceScreen({Key? key}) : super(key: key);
 
@@ -289,14 +297,6 @@ class _ApproveEvidenceScreenState extends State<ApproveEvidenceScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // const Text(
-                                  //   'Review uploaded image / video evidence submitted by users. Pending is used when the status field is missing.',
-                                  //   style: TextStyle(
-                                  //     color: AppColors.textWhite,
-                                  //     fontSize: 13,
-                                  //   ),
-                                  // ),
-                                  // const SizedBox(height: 14),
                                   Row(
                                     children: [
                                       Expanded(
@@ -658,8 +658,8 @@ class _EvidenceCard extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: busy ? null : onApprove,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.primaryDarkGrey,
+                      foregroundColor: AppColors.accentOrange,
                       disabledBackgroundColor:
                           const Color(0xFF22C55E).withValues(alpha: 0.45),
                       disabledForegroundColor: Colors.white70,
@@ -686,8 +686,8 @@ class _EvidenceCard extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: busy ? null : onReject,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF4D67),
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.textRed,
+                      foregroundColor: AppColors.textWhite,
                       disabledBackgroundColor:
                           const Color(0xFFFF4D67).withValues(alpha: 0.45),
                       disabledForegroundColor: Colors.white70,

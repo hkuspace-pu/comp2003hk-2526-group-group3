@@ -1,8 +1,8 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:typed_data';
 
 import '../models/activity_log.dart';
 import '../models/focus_session.dart';
@@ -68,33 +68,36 @@ class FirestoreService {
     required String evidenceType,
     required String originalFileName,
   }) async {
-    final safeFileName = _sanitizeStorageFileName(originalFileName);
-    final extension = _extractFileExtension(safeFileName);
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final storagePath =
-        'activity_evidence/$uid/${timestamp}_${evidenceType.toLowerCase()}.$extension';
+    // IMPORTANT:
+    // - Store a HTTPS download URL (getDownloadURL) in Firestore so Flutter Web can display it.
+    // - Keep storage path in Firestore as well for management (delete / audit).
 
-    final ref = _storage.ref().child(storagePath);
-    final metadata = SettableMetadata(
-      contentType: _guessEvidenceContentType(
-        fileName: safeFileName,
-        evidenceType: evidenceType,
-      ),
-      customMetadata: {
-        'uid': uid,
-        'evidenceType': evidenceType,
-        'originalFileName': originalFileName,
-      },
+    final safeName = _sanitizeStorageFileName(originalFileName);
+    final ext = safeName.contains('.')
+        ? safeName.split('.').last.toLowerCase()
+        : (evidenceType.toLowerCase() == 'video' ? 'mp4' : 'jpg');
+
+    final fileName =
+        '${DateTime.now().millisecondsSinceEpoch}_${evidenceType.toLowerCase()}.$ext';
+    final path = 'activity_evidence/$uid/$fileName';
+
+    final contentType = _guessEvidenceContentType(
+      fileName: fileName,
+      evidenceType: evidenceType,
     );
 
+    final ref = _storage.ref(path);
+    final metadata = SettableMetadata(contentType: contentType);
+
     await ref.putData(bytes, metadata);
+
     final downloadUrl = await ref.getDownloadURL();
 
     return {
       'url': downloadUrl,
-      'path': storagePath,
-      'fileName': originalFileName,
-      'contentType': metadata.contentType ?? '',
+      'path': path,
+      'fileName': fileName,
+      'contentType': contentType,
     };
   }
 

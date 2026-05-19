@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:image_picker/image_picker.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/firestore_service.dart';
 import '../utils/colors.dart';
@@ -102,9 +102,8 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
     }
   }
 
-
-
-  Future<void> _pickEvidence(ImageSource source, {required bool isVideo}) async {
+  Future<void> _pickEvidence(ImageSource source,
+      {required bool isVideo}) async {
     try {
       final XFile? picked = isVideo
           ? await _picker.pickVideo(source: source)
