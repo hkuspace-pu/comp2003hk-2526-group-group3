@@ -7,14 +7,6 @@ import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 
-// String _normalizeEvidenceUrl(String url) {
-//   return url
-//       .replaceAll('&amp;', '&')
-//       .replaceAll('&#38;', '&')
-//       .replaceAll('&quot;', '"')
-//       .replaceAll('&#34;', '"');
-// }
-
 class ApproveEvidenceScreen extends StatefulWidget {
   const ApproveEvidenceScreen({Key? key}) : super(key: key);
 
@@ -113,7 +105,9 @@ class _ApproveEvidenceScreenState extends State<ApproveEvidenceScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.textRed),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.textRed,
+                foregroundColor: AppColors.textWhite),
             child: const Text('Reject'),
           ),
         ],
