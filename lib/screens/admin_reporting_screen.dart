@@ -3,6 +3,7 @@ import 'dart:html' as html;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../utils/colors.dart';
@@ -17,7 +18,10 @@ class AdminReportingScreen extends StatefulWidget {
 
 class _AdminReportingScreenState extends State<AdminReportingScreen> {
   List<Map<String, dynamic>> _userStats = [];
+
   String _sortBy = 'minutes';
+  String _search = '';
+  String _rangeFilter = '30d';
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _activitiesStream() {
     return FirebaseFirestore.instance.collectionGroup('activities').snapshots();
@@ -27,20 +31,33 @@ class _AdminReportingScreenState extends State<AdminReportingScreen> {
     return FirebaseFirestore.instance.collection('users').snapshots();
   }
 
+  bool _withinRange(DateTime date) {
+    final now = DateTime.now();
+
+    if (_rangeFilter == '7d') return now.difference(date).inDays <= 7;
+    if (_rangeFilter == '30d') return now.difference(date).inDays <= 30;
+
+    return true;
+  }
+
   void _processData(
       List<QueryDocumentSnapshot<Map<String, dynamic>>> activities,
       List<QueryDocumentSnapshot<Map<String, dynamic>>> users) {
-    final userMap = {
-      for (final u in users) u.id: u.data(),
-    };
+    final userMap = {for (var u in users) u.id: u.data()};
 
     final stats = <String, Map<String, dynamic>>{};
 
     for (final doc in activities) {
       final data = doc.data();
-      final uid = data['uid'];
 
+      final uid = data['uid'];
       if (uid == null) continue;
+
+      final ts = data['loggedAt'];
+      DateTime? date;
+      if (ts is Timestamp) date = ts.toDate();
+
+      if (date == null || !_withinRange(date)) continue;
 
       final duration = (data['durationMinutes'] ?? 0) as int;
 
@@ -58,7 +75,13 @@ class _AdminReportingScreenState extends State<AdminReportingScreen> {
       stats[uid]!['activity'] += 1;
     }
 
-    final list = stats.values.toList();
+    var list = stats.values.toList();
+
+    list = list.where((u) {
+      final name = u['name'].toString().toLowerCase();
+      final email = u['email'].toString().toLowerCase();
+      return name.contains(_search) || email.contains(_search);
+    }).toList();
 
     list.sort((a, b) => _sortBy == 'minutes'
         ? b['minutes'].compareTo(a['minutes'])
@@ -68,7 +91,7 @@ class _AdminReportingScreenState extends State<AdminReportingScreen> {
   }
 
   void _exportCSV() {
-    final List<List<String>> rows = [
+    final rows = [
       ['Name', 'Email', 'Minutes', 'Activities'],
       ..._userStats.map((u) => [
             u['name'],
@@ -84,19 +107,50 @@ class _AdminReportingScreenState extends State<AdminReportingScreen> {
     final blob = html.Blob([bytes]);
     final url = html.Url.createObjectUrlFromBlob(blob);
 
+    final fileName = 'report_${DateTime.now().millisecondsSinceEpoch}.csv';
+
     html.AnchorElement(href: url)
-      ..setAttribute("download", "report.csv")
+      ..setAttribute("download", fileName)
       ..click();
 
     html.Url.revokeObjectUrl(url);
   }
 
+  Widget _buildChart() {
+    return Container(
+      height: 180,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: BarChart(
+        BarChartData(
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(show: false),
+          barGroups: _userStats.take(5).toList().asMap().entries.map((e) {
+            final user = e.value;
+
+            return BarChartGroupData(
+              x: e.key,
+              barRods: [
+                BarChartRodData(
+                  toY: (user['minutes'] as int).toDouble(),
+                  color: AppColors.accentOrange,
+                  width: 16,
+                )
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Reports'),
-      ),
+      appBar: AppBar(title: const Text('Admin Reports')),
       body: GradientBackground(
         child: SafeArea(
           child: StreamBuilder(
@@ -116,46 +170,84 @@ class _AdminReportingScreenState extends State<AdminReportingScreen> {
                   _processData(
                       activitySnapshot.data!.docs, userSnapshot.data!.docs);
 
+                  if (_userStats.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No data available',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    );
+                  }
+
                   return Column(
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
+                            Expanded(
+                              child: TextField(
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  hintText: 'Search...',
+                                  hintStyle:
+                                      const TextStyle(color: Colors.grey),
+                                  filled: true,
+                                  fillColor: AppColors.primaryDarkGrey,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                onChanged: (v) =>
+                                    setState(() => _search = v.toLowerCase()),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
                             DropdownButton<String>(
                               value: _sortBy,
-                              dropdownColor: AppColors.cardBackground,
                               items: const [
                                 DropdownMenuItem(
-                                  value: 'minutes',
-                                  child: Text('Sort by Minutes'),
-                                ),
+                                    value: 'minutes', child: Text('Minutes')),
                                 DropdownMenuItem(
-                                  value: 'activity',
-                                  child: Text('Sort by Activity'),
-                                ),
+                                    value: 'activity', child: Text('Activity')),
                               ],
-                              onChanged: (val) {
-                                setState(() {
-                                  _sortBy = val!;
-                                });
-                              },
+                              onChanged: (v) => setState(() => _sortBy = v!),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 10),
+                            DropdownButton<String>(
+                              value: _rangeFilter,
+                              items: const [
+                                DropdownMenuItem(
+                                    value: '7d', child: Text('7D')),
+                                DropdownMenuItem(
+                                    value: '30d', child: Text('30D')),
+                                DropdownMenuItem(
+                                    value: 'all', child: Text('All')),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _rangeFilter = v!),
+                            ),
+                            const SizedBox(width: 10),
                             ElevatedButton.icon(
                               onPressed: _exportCSV,
                               icon: const Icon(Icons.download),
-                              label: const Text('Export CSV'),
+                              label: const Text('CSV'),
                             ),
                           ],
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildChart(),
+                      ),
+                      const SizedBox(height: 16),
                       Expanded(
                         child: ListView(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           children: [
-                            _buildHeaderRow(),
-                            ..._userStats.map((u) => _buildRow(u)),
+                            _headerRow(),
+                            ..._userStats.map(_row),
                           ],
                         ),
                       ),
@@ -170,32 +262,26 @@ class _AdminReportingScreenState extends State<AdminReportingScreen> {
     );
   }
 
-  Widget _buildHeaderRow() {
+  Widget _headerRow() {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(8),
-      ),
+      color: AppColors.cardBackground,
       child: const Row(
         children: [
           Expanded(child: Text('Name')),
           Expanded(child: Text('Email')),
           Expanded(child: Text('Minutes')),
-          Expanded(child: Text('Activities')),
+          Expanded(child: Text('Activity')),
         ],
       ),
     );
   }
 
-  Widget _buildRow(Map<String, dynamic> u) {
+  Widget _row(Map<String, dynamic> u) {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primaryDarkGrey,
-        borderRadius: BorderRadius.circular(8),
-      ),
+      color: AppColors.primaryDarkGrey,
       child: Row(
         children: [
           Expanded(child: Text(u['name'])),
