@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:focusaquarium/screens/admin_reporting_screen.dart';
+import 'package:focusaquarium/screens/approve_evidence_screen.dart';
 import 'package:focusaquarium/screens/user_management_screen.dart';
 
 import '../services/auth_service.dart';
@@ -85,7 +87,7 @@ class AdminDashboardScreen extends StatelessWidget {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
-                                            const RegisterScreen(),
+                                            const ApproveEvidenceScreen(),
                                       ),
                                     );
                                   },
@@ -103,7 +105,7 @@ class AdminDashboardScreen extends StatelessWidget {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
-                                            const RegisterScreen(),
+                                            const AdminReportingScreen(),
                                       ),
                                     );
                                   },
