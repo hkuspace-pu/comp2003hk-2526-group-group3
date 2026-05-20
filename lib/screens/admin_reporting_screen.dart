@@ -1,13 +1,12 @@
-import 'dart:convert';
-import 'dart:html' as html;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
 
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
+
+import 'csv_export_stub.dart' if (dart.library.html) 'csv_export_web.dart';
 
 class AdminReportingScreen extends StatefulWidget {
   const AdminReportingScreen({Key? key}) : super(key: key);
@@ -34,9 +33,12 @@ class _AdminReportingScreenState extends State<AdminReportingScreen> {
   bool _withinRange(DateTime date) {
     final now = DateTime.now();
 
-    if (_rangeFilter == '7d') return now.difference(date).inDays <= 7;
-    if (_rangeFilter == '30d') return now.difference(date).inDays <= 30;
-
+    if (_rangeFilter == '7d') {
+      return now.difference(date).inDays <= 7;
+    }
+    if (_rangeFilter == '30d') {
+      return now.difference(date).inDays <= 30;
+    }
     return true;
   }
 
@@ -103,17 +105,7 @@ class _AdminReportingScreenState extends State<AdminReportingScreen> {
 
     final csv = const ListToCsvConverter().convert(rows);
 
-    final bytes = utf8.encode(csv);
-    final blob = html.Blob([bytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-
-    final fileName = 'report_${DateTime.now().millisecondsSinceEpoch}.csv';
-
-    html.AnchorElement(href: url)
-      ..setAttribute("download", fileName)
-      ..click();
-
-    html.Url.revokeObjectUrl(url);
+    downloadCSV(context, csv);
   }
 
   Widget _buildChart() {
