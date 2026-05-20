@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -20,6 +21,7 @@ class LuckyResult {
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static const int maxAquariumFish = 10;
 
@@ -59,6 +61,91 @@ class FirestoreService {
       }
     }
     return out;
+  }
+
+  Future<Map<String, String>> uploadActivityEvidence({
+    required String uid,
+    required Uint8List bytes,
+    required String evidenceType,
+    required String originalFileName,
+  }) async {
+    // IMPORTANT:
+    // - Store a HTTPS download URL (getDownloadURL) in Firestore so Flutter Web can display it.
+    // - Keep storage path in Firestore as well for management (delete / audit).
+
+    final safeName = _sanitizeStorageFileName(originalFileName);
+    final ext = safeName.contains('.')
+        ? safeName.split('.').last.toLowerCase()
+        : (evidenceType.toLowerCase() == 'video' ? 'mp4' : 'jpg');
+
+    final fileName =
+        '${DateTime.now().millisecondsSinceEpoch}_${evidenceType.toLowerCase()}.$ext';
+    final path = 'activity_evidence/$uid/$fileName';
+
+    final contentType = _guessEvidenceContentType(
+      fileName: fileName,
+      evidenceType: evidenceType,
+    );
+
+    final ref = _storage.ref(path);
+    final metadata = SettableMetadata(contentType: contentType);
+
+    await ref.putData(bytes, metadata);
+
+    final downloadUrl = await ref.getDownloadURL();
+
+    return {
+      'url': downloadUrl,
+      'path': path,
+      'fileName': fileName,
+      'contentType': contentType,
+    };
+  }
+
+  String _sanitizeStorageFileName(String fileName) {
+    final trimmed = fileName.trim();
+    if (trimmed.isEmpty) return 'evidence_file';
+    return trimmed.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+  }
+
+  String _extractFileExtension(String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex <= 0 || dotIndex == fileName.length - 1) {
+      return 'bin';
+    }
+    return fileName.substring(dotIndex + 1).toLowerCase();
+  }
+
+  String _guessEvidenceContentType({
+    required String fileName,
+    required String evidenceType,
+  }) {
+    final ext = _extractFileExtension(fileName);
+
+    const imageMap = <String, String>{
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'bmp': 'image/bmp',
+      'heic': 'image/heic',
+      'heif': 'image/heif',
+    };
+
+    const videoMap = <String, String>{
+      'mp4': 'video/mp4',
+      'mov': 'video/quicktime',
+      'avi': 'video/x-msvideo',
+      'mkv': 'video/x-matroska',
+      'webm': 'video/webm',
+      '3gp': 'video/3gpp',
+      'm4v': 'video/x-m4v',
+    };
+
+    if (imageMap.containsKey(ext)) return imageMap[ext]!;
+    if (videoMap.containsKey(ext)) return videoMap[ext]!;
+    return evidenceType.toLowerCase() == 'video' ? 'video/mp4' : 'image/jpeg';
   }
 
   Future<void> createUserProfile({
@@ -567,6 +654,11 @@ class FirestoreService {
     required String mood,
     required String notes,
     String? photoPath,
+    String? evidenceUrl,
+    String? evidenceType,
+    String? evidenceStoragePath,
+    String? evidenceFileName,
+    String? evidenceContentType,
   }) async {
     final points = (durationMinutes * 1.5).round();
     String? photoUrl;
@@ -581,6 +673,16 @@ class FirestoreService {
       'notes': notes,
       'pointsEarned': points,
       'loggedAt': DateTime.now(),
+      'evidenceUrl': evidenceUrl,
+      'evidenceType': evidenceType,
+      'evidenceStoragePath': evidenceStoragePath,
+      'evidenceFileName': evidenceFileName,
+      'evidenceContentType': evidenceContentType,
+      'hasEvidence': evidenceUrl != null,
+      'evidenceStatus': evidenceUrl != null ? 'pending' : null,
+      'evidenceReviewedAt': null,
+      'evidenceReviewedByUid': null,
+      'evidenceReviewNote': null,
       if (photoUrl != null) 'photoUrl': photoUrl,
     });
     final userDoc = await _db.collection('users').doc(uid).get();
