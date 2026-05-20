@@ -97,7 +97,6 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-
   Stream<QuerySnapshot<Map<String, dynamic>>> getAllUsersStream() {
     return _db
         .collection('users')
