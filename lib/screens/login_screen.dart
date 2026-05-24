@@ -5,6 +5,7 @@ import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
 import 'admin_dashboard_screen.dart';
 import 'dashboard_screen.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -321,6 +322,24 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: _onForgotPassword,
                               child: const Text(
                                 'Forget password?',
+                                style: TextStyle(
+                                  color: AppColors.textWhite,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Center(
+                            child: TextButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const SignUpScreen(),
+                                        ),
+                                      ),
+                              child: const Text(
+                                "Don't have an account? Sign up",
                                 style: TextStyle(
                                   color: AppColors.textWhite,
                                   fontWeight: FontWeight.w600,
