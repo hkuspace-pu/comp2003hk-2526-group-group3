@@ -1,11 +1,11 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import '../models/user_profile.dart';
 import '../services/firestore_service.dart';
-import '../utils/colors.dart';
+import '../models/user_profile.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/gradient_background.dart';
+import '../utils/colors.dart';
 import 'add_activity_screen.dart';
 import 'aquarium_screen.dart';
 import 'collection_screen.dart';
@@ -68,14 +68,14 @@ class _DashboardHome extends StatelessWidget {
       stream: firestoreService.getUserProfileStream(user.uid),
       builder: (context, snapshot) {
         final profile = snapshot.data;
-
         final displayName = profile?.displayName ?? 'User';
         final totalPoints = profile?.totalPoints ?? 0;
         final currentStreak = profile?.currentStreak ?? 0;
         final totalFocusHours =
             ((profile?.totalFocusMinutes ?? 0) / 60).toStringAsFixed(1);
-        final level = profile?.level ?? 1;
-        final fishCount = profile?.ownedFish.length ?? 0;
+        // level derived from points so it tracks store/lucky spend correctly
+        final level = firestoreService.calculateLevel(totalPoints);
+        final fishCount = profile?.totalFishCount ?? 0;
 
         return GradientBackground(
           child: SafeArea(
