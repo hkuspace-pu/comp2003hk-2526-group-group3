@@ -1,13 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import '../utils/colors.dart';
-import '../widgets/gradient_background.dart';
+
 import '../services/firestore_service.dart';
+import '../widgets/gradient_background.dart';
+import '../utils/colors.dart';
 
 class DataManagementScreen extends StatefulWidget {
   const DataManagementScreen({Key? key}) : super(key: key);
@@ -40,9 +42,11 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
 
     try {
       final data = await _firestoreService.exportUserData(user.uid);
+      // print('export data keys: ${data.keys}');
       final jsonString = const JsonEncoder.withIndent('  ').convert(data);
 
       final dir = await getTemporaryDirectory();
+      // replace : and . because file name cannot have these character
       final timestamp = DateTime.now()
           .toIso8601String()
           .replaceAll(':', '-')
@@ -221,7 +225,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Export Section
                       const Text(
                         'Export Data',
                         style: TextStyle(
@@ -248,8 +251,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
 
                       const Divider(color: AppColors.textGrey),
                       const SizedBox(height: 32),
-
-                      // Import Section
                       const Text(
                         'Import Data',
                         style: TextStyle(
@@ -276,8 +277,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
 
                       const Divider(color: AppColors.textGrey),
                       const SizedBox(height: 32),
-
-                      // Danger Zone
                       const Text(
                         'Danger Zone',
                         style: TextStyle(
