@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/user_profile.dart';
 import '../services/firestore_service.dart';
 import '../utils/colors.dart';
+import '../utils/constants.dart';
 import '../widgets/gradient_background.dart';
 import 'achievements_screen.dart';
-import 'settings_screen.dart';
 import 'data_management_screen.dart';
 import 'help_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'settings_screen.dart';
+import 'terms_of_use_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -24,15 +28,24 @@ class ProfileScreen extends StatelessWidget {
       builder: (context, snapshot) {
         final profile = snapshot.data;
         final displayName = profile?.displayName ?? 'User';
-        final level = profile?.level ?? 1;
         final totalPoints = profile?.totalPoints ?? 0;
+        // level off live points so store/lucky spend updates it immediately
+        final level = firestoreService.calculateLevel(totalPoints);
         final totalFocusHours =
             ((profile?.totalFocusMinutes ?? 0) / 60).toStringAsFixed(1);
         final activityCount = profile?.activityCount ?? 0;
         final currentStreak = profile?.currentStreak ?? 0;
-        final fishCount = profile?.ownedFish.length ?? 0;
+        final inv = profile?.fishInventory ?? const <String, int>{};
+        final fishCount = profile?.totalFishCount ?? 0;
         final decorationCount = profile?.ownedDecorations.length ?? 0;
         final foodStock = profile?.foodStock ?? 0;
+
+        // collapse "goldfish@1" / "goldfish@2" / ... into one row per species
+        final counts = <String, int>{};
+        for (final e in inv.entries) {
+          final id = e.key.split('@').first;
+          counts[id] = (counts[id] ?? 0) + e.value;
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -55,7 +68,6 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    // Profile Avatar
                     Container(
                       width: 80,
                       height: 80,
@@ -70,8 +82,6 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Username
                     Text(
                       displayName,
                       style: const TextStyle(
@@ -81,8 +91,6 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-
-                    // Level
                     Text(
                       'Level $level',
                       style: const TextStyle(
@@ -92,8 +100,6 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Statistics Card
                     _buildCard(
                       title: '📊 Statistics',
                       children: [
@@ -104,19 +110,30 @@ class ProfileScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-
-                    // Aquarium Status Card
                     _buildCard(
                       title: '🐠 Aquarium',
                       children: [
-                        _buildStatRow('Fishes Owned:', '$fishCount / 10 🐠'),
+                        _buildStatRow('Total Owned:', '$fishCount / 10 🐠'),
                         _buildStatRow('Decorations:', '$decorationCount 🪸'),
                         _buildStatRow('Food Stock:', '$foodStock 🍖'),
+                        if (counts.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Divider(color: AppColors.textGrey, height: 1),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Fish Breakdown',
+                            style: TextStyle(
+                              color: AppColors.textGrey,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ..._buildSpeciesRows(counts),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 24),
-
-                    // Menu Items
                     _buildMenuItem(
                       context,
                       icon: Icons.emoji_events,
@@ -149,6 +166,30 @@ class ProfileScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const HelpScreen(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.privacy_tip,
+                      label: 'Privacy Policy',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PrivacyPolicyScreen(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.description,
+                      label: 'Terms of Use',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TermsOfUseScreen(),
                         ),
                       ),
                     ),
@@ -190,6 +231,21 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+
+  List<Widget> _buildSpeciesRows(Map<String, int> counts) {
+    final entries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return [
+      for (final e in entries)
+        _buildStatRow(
+          '${(AppConstants.storeItems[e.key]?['icon'] as String?) ?? '🐟'}  '
+              '${(AppConstants.storeItems[e.key]?['name'] as String?) ?? _cap(e.key)}',
+          '× ${e.value}',
+        ),
+    ];
+  }
+
+  String _cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
   Widget _buildStatRow(String label, String value) {
     return Padding(
