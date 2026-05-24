@@ -34,8 +34,8 @@ class _HelpScreenState extends State<HelpScreen> {
     {
       'question': 'How to export data?',
       'answer':
-          'Go to Profile → Data Management, then choose your export format (JSON, TSV, or ZIP). '
-              'Your data will be saved as a file that you can backup to cloud storage or transfer to another device.',
+          'Go to Profile → Data Management and tap "Export as JSON" to save a full backup of your data. '
+              'You can store the JSON file in cloud storage or transfer it to another device, then use "Import from JSON" to restore.',
     },
     {
       'question': 'What are achievements?',
