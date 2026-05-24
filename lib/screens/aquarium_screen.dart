@@ -102,6 +102,16 @@ class _AquariumScreenState extends State<AquariumScreen> {
     return StreamBuilder<UserProfile?>(
       stream: _firestoreService.getUserProfileStream(uid),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Error: ${snapshot.error}')),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
         final profile = snapshot.data!;
         final points = profile.totalPoints;
         final foodStock = profile.foodStock;
@@ -269,7 +279,7 @@ class _AquariumScreenState extends State<AquariumScreen> {
                                       MainAxisAlignment.spaceAround,
                                   children: [
                                     _buildStat('💰', 'Points', '$points'),
-                                    _buildStat('🐟', 'Fishes', '$fishCount/10'),
+                                    _buildStat('🐟', 'Total', '$fishCount/10'),
                                     _buildStat('🍖', 'Food', '$foodStock'),
                                   ],
                                 ),
