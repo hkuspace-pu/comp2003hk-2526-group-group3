@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import '../utils/colors.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../widgets/gradient_background.dart';
+import '../utils/colors.dart';
 import 'data_management_screen.dart';
 import 'help_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_use_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -30,7 +33,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Sound & Notifications Section
               const Text(
                 'Sound & Notifications',
                 style: TextStyle(
@@ -88,8 +90,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
               const SizedBox(height: 32),
-
-              // App Settings Section
               const Text(
                 'App Settings',
                 style: TextStyle(
@@ -131,8 +131,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.privacy_tip,
                 label: 'Privacy Policy',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Privacy Policy coming soon')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PrivacyPolicyScreen(),
+                    ),
                   );
                 },
               ),
@@ -143,8 +146,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.description,
                 label: 'Terms of Use',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Terms of Use coming soon')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TermsOfUseScreen(),
+                    ),
                   );
                 },
               ),
@@ -164,8 +170,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
               const SizedBox(height: 32),
-
-              // Logout Button
               SizedBox(
                 width: double.infinity,
                 height: 56,
