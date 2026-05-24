@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/user_profile.dart';
 import '../services/firestore_service.dart';
 import '../utils/colors.dart';
@@ -8,13 +9,18 @@ import '../widgets/gradient_background.dart';
 class AchievementsScreen extends StatelessWidget {
   const AchievementsScreen({Key? key}) : super(key: key);
 
-  // Define all achievements with their unlock conditions
   List<Map<String, dynamic>> _buildAchievements(UserProfile profile) {
     final focusHours = profile.totalFocusMinutes / 60;
     final sessionCount = profile.sessionCount;
     final activityCount = profile.activityCount;
     final streak = profile.currentStreak;
-    final fishCount = profile.ownedFish.length;
+    final totalFish = profile.totalFishCount;
+    // strip "@level" so lv1/lv2 of the same fish collapse into one species
+    final species = profile.fishInventory.entries
+        .where((e) => e.value > 0)
+        .map((e) => e.key.split('@').first)
+        .toSet()
+        .length;
 
     return [
       {
@@ -76,18 +82,18 @@ class AchievementsScreen extends StatelessWidget {
         'name': 'Fish Keeper',
         'description': 'Own your first fish',
         'icon': '🐠',
-        'progress': fishCount.clamp(0, 1),
+        'progress': totalFish.clamp(0, 1),
         'target': 1,
-        'unlocked': fishCount >= 1,
+        'unlocked': totalFish >= 1,
       },
       {
         'id': 'aquarium_master',
         'name': 'Aquarium Master',
-        'description': 'Own 5 different fish',
+        'description': 'Own 5 different fish species',
         'icon': '🐟',
-        'progress': fishCount.clamp(0, 5),
+        'progress': species.clamp(0, 5),
         'target': 5,
-        'unlocked': fishCount >= 5,
+        'unlocked': species >= 5,
       },
       {
         'id': 'points_100',
@@ -143,7 +149,6 @@ class AchievementsScreen extends StatelessWidget {
             child: SafeArea(
               child: Column(
                 children: [
-                  // Header
                   Padding(
                     padding: const EdgeInsets.all(20),
                     child: Container(
@@ -174,8 +179,6 @@ class AchievementsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-
-                  // Achievements Grid
                   Expanded(
                     child: GridView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -272,7 +275,6 @@ class AchievementsScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Icon with opacity if locked
             Opacity(
               opacity: isUnlocked ? 1.0 : 0.4,
               child: Text(
@@ -281,8 +283,6 @@ class AchievementsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-
-            // Name
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
@@ -298,8 +298,6 @@ class AchievementsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-
-            // Progress
             if (!isUnlocked)
               Text(
                 '${progress.toStringAsFixed(progress % 1 == 0 ? 0 : 1)}/${target.toInt()}',

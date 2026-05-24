@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/focus_session.dart';
+
 import '../models/activity_log.dart';
+import '../models/focus_session.dart';
 import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
@@ -28,22 +29,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     _loadData();
   }
 
+  DateTime _rangeStart() {
+    final now = DateTime.now();
+    return switch (_selectedTab) {
+      0 => DateTime(now.year, now.month, now.day),
+      1 => now.subtract(const Duration(days: 7)),
+      _ => now.subtract(const Duration(days: 30)),
+    };
+  }
+
   Future<void> _loadData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     setState(() => _isLoading = true);
 
+    final start = _rangeStart();
     final now = DateTime.now();
-    DateTime start;
-
-    if (_selectedTab == 0) {
-      start = DateTime(now.year, now.month, now.day);
-    } else if (_selectedTab == 1) {
-      start = now.subtract(const Duration(days: 7));
-    } else {
-      start = now.subtract(const Duration(days: 30));
-    }
 
     final sessions = await _firestoreService.getSessionsForDateRange(
       user.uid,
@@ -51,6 +53,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       now,
     );
     final activities = await _firestoreService.getActivityLogs(user.uid);
+    // print('stat loaded ${sessions.length} sessions, ${activities.length} activities');
 
     if (mounted) {
       setState(() {
@@ -62,38 +65,65 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
   }
 
-  // Calculate daily focus minutes for bar chart (last 7 days)
-  Map<String, double> _getDailyFocusHours() {
-    final now = DateTime.now();
-    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final Map<String, double> result = {
-      for (var d in days) d: 0.0,
-    };
-
-    for (final session in _sessions) {
-      final weekday = session.startTime.weekday; // 1=Mon, 7=Sun
-      final dayName = days[weekday - 1];
-      result[dayName] = (result[dayName] ?? 0) + session.durationMinutes / 60;
-    }
-
-    return result;
+  // sessions inside the current tab range
+  List<FocusSession> get _sessionsInTabRange {
+    final start = _rangeStart();
+    return _sessions.where((s) => s.startTime.isAfter(start)).toList();
   }
 
-  // Calculate activity type distribution
-  Map<String, int> _getActivityDistribution() {
-    final Map<String, int> result = {};
-    for (final activity in _activities) {
-      result[activity.activityType] = (result[activity.activityType] ?? 0) + 1;
+  // bar series for the chart. Bins vary by tab; labels are sparse on Month.
+  List<Map<String, dynamic>> _getChartSeries() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (_selectedTab == 0) {
+      final bins = List<double>.filled(12, 0);
+      for (final s in _sessions.where((s) => !s.startTime.isBefore(today))) {
+        bins[(s.startTime.hour ~/ 2).clamp(0, 11)] += s.durationMinutes / 60;
+      }
+      return [
+        for (var i = 0; i < 12; i++)
+          {'label': '${i * 2}', 'hours': bins[i], 'showLabel': i % 2 == 0},
+      ];
     }
-    return result;
+
+    final days = _selectedTab == 1 ? 7 : 30;
+    return [
+      for (var i = days - 1; i >= 0; i--)
+        _dayBar(today.subtract(Duration(days: i)),
+            showLabel: _selectedTab == 1 || i % 5 == 0),
+    ];
+  }
+
+  Map<String, dynamic> _dayBar(DateTime d, {required bool showLabel}) {
+    var hours = 0.0;
+    for (final s in _sessions) {
+      final t = s.startTime;
+      if (t.year == d.year && t.month == d.month && t.day == d.day) {
+        hours += s.durationMinutes / 60;
+      }
+    }
+    return {
+      'label': '${d.month}/${d.day}',
+      'hours': hours,
+      'showLabel': showLabel,
+    };
+  }
+
+  Map<String, int> _getActivityDistribution() {
+    final out = <String, int>{};
+    for (final a in _activities) {
+      out[a.activityType] = (out[a.activityType] ?? 0) + 1;
+    }
+    return out;
   }
 
   int get _totalFocusMinutes =>
-      _sessions.fold(0, (sum, s) => sum + s.durationMinutes);
+      _sessionsInTabRange.fold(0, (s, x) => s + x.durationMinutes);
 
   int get _totalPoints =>
-      _sessions.fold(0, (sum, s) => sum + s.pointsEarned) +
-      _activities.fold(0, (sum, a) => sum + a.pointsEarned);
+      _sessionsInTabRange.fold(0, (s, x) => s + x.pointsEarned) +
+      _activities.fold(0, (s, x) => s + x.pointsEarned);
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +149,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Tab Selection
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -143,7 +172,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ),
                   )
                 else ...[
-                  // Focus Time Trend (bar chart)
                   const Text(
                     '📊 Focus Time Trend',
                     style: TextStyle(
@@ -164,29 +192,52 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         SizedBox(
                           height: 150,
                           child: Builder(builder: (context) {
-                            final dailyHours = _getDailyFocusHours();
-                            final maxHours = dailyHours.values.isEmpty
-                                ? 1.0
-                                : dailyHours.values
-                                            .reduce((a, b) => a > b ? a : b) ==
-                                        0
-                                    ? 1.0
-                                    : dailyHours.values
-                                        .reduce((a, b) => a > b ? a : b);
+                            final series = _getChartSeries();
+                            // find the max hours for scale the bar height
+                            double maxHours = 0.0;
+                            for (var bar in series) {
+                              final h = bar['hours'] as double;
+                              if (h > maxHours) maxHours = h;
+                            }
+                            if (maxHours == 0) maxHours = 1.0;
+
+                            double barWidth;
+                            if (_selectedTab == 2) {
+                              barWidth = 6.0;
+                            } else if (_selectedTab == 0) {
+                              barWidth = 16.0;
+                            } else {
+                              barWidth = 26.0;
+                            }
 
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.end,
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: dailyHours.entries.map((e) {
-                                return _buildBar(e.key, e.value, maxHours);
+                              mainAxisAlignment: _selectedTab == 2
+                                  ? MainAxisAlignment.spaceBetween
+                                  : MainAxisAlignment.spaceEvenly,
+                              children: series.map((bar) {
+                                final showLabel = bar['showLabel'] as bool;
+                                final label =
+                                    showLabel ? bar['label'] as String : '';
+                                final hours = bar['hours'] as double;
+                                return _buildBar(
+                                  label,
+                                  hours,
+                                  maxHours,
+                                  width: barWidth,
+                                );
                               }).toList(),
                             );
                           }),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Hours per day',
-                          style: TextStyle(
+                        Text(
+                          _selectedTab == 0
+                              ? 'Hours per 2-hour block (today)'
+                              : _selectedTab == 1
+                                  ? 'Hours per day (last 7 days)'
+                                  : 'Hours per day (last 30 days)',
+                          style: const TextStyle(
                             color: AppColors.textGrey,
                             fontSize: 12,
                           ),
@@ -195,8 +246,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Summary
                   Text(
                     _selectedTab == 0
                         ? '📈 Today\'s Summary'
@@ -220,7 +269,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       children: [
                         _buildSummaryRow(
                           'Focus Sessions:',
-                          '${_sessions.length}',
+                          '${_sessionsInTabRange.length}',
                         ),
                         const SizedBox(height: 12),
                         _buildSummaryRow(
@@ -241,8 +290,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Activity Distribution
                   const Text(
                     '🎯 Activity Distribution',
                     style: TextStyle(
@@ -310,20 +357,25 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildBar(String label, double hours, double maxHours) {
-    final heightPercent = maxHours == 0 ? 0.0 : hours / maxHours;
+  Widget _buildBar(String label, double hours, double maxHours,
+      {double width = 26}) {
+    final pct = maxHours > 0 ? hours / maxHours : 0.0;
+    final barHeight = (100 * pct).clamp(4.0, 100.0);
+    // skip value label on narrow bars (month view) — no room
+    final showValue = hours > 0 && width >= 16;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        if (hours > 0)
+        if (showValue)
           Text(
             '${hours.toStringAsFixed(1)}h',
             style: const TextStyle(color: AppColors.textGrey, fontSize: 10),
           ),
         const SizedBox(height: 4),
         Container(
-          width: 30,
-          height: (100 * heightPercent).clamp(4.0, 100.0),
+          width: width,
+          height: barHeight,
           decoration: BoxDecoration(
             color:
                 hours > 0 ? AppColors.accentOrange : AppColors.cardBackground,
@@ -331,9 +383,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(color: AppColors.textGrey, fontSize: 10),
+        SizedBox(
+          height: 12,
+          child: Text(
+            label,
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 10),
+          ),
         ),
       ],
     );
