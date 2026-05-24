@@ -274,7 +274,12 @@ class FirestoreService {
         }
       }
       if (!data.containsKey('aquariumFish')) {
-        data['aquariumFish'] = <String>[];
+        // Pre-populate from legacy ownedFish on first-time migration; brand-new users get [].
+        final owned = List<String>.from(data['ownedFish'] ?? const <String>[]);
+        data['aquariumFish'] = owned
+            .map((id) => fishKey(id, 1))
+            .take(maxAquariumFish)
+            .toList();
         needWriteBack = true;
       } else {
         final rawTank = List<dynamic>.from(data['aquariumFish'] ?? const []);
@@ -285,10 +290,14 @@ class FirestoreService {
         }
       }
       if (needWriteBack) {
-        await ref.set({
-          'fishInventory': data['fishInventory'],
-          'aquariumFish': data['aquariumFish'],
-        }, SetOptions(merge: true));
+        try {
+          await ref.set({
+            'fishInventory': data['fishInventory'],
+            'aquariumFish': data['aquariumFish'],
+          }, SetOptions(merge: true));
+        } catch (_) {
+          // Best-effort migration; surface the in-memory profile even if write-back fails.
+        }
       }
       return UserProfile.fromFirestore(data, uid);
     });
@@ -477,7 +486,7 @@ class FirestoreService {
     final currentMinutes = data['totalFocusMinutes'] ?? 0;
     final currentSessions = data['sessionCount'] ?? 0;
     final newPoints = currentPoints + pointsEarned;
-    final newLevel = _calculateLevel(newPoints);
+    final newLevel = calculateLevel(newPoints);
     await _db.collection('users').doc(uid).update({
       'totalPoints': newPoints,
       'totalFocusMinutes': currentMinutes + durationMinutes,
@@ -601,7 +610,7 @@ class FirestoreService {
     return entries.last.key;
   }
 
-  int _calculateLevel(int points) {
+  int calculateLevel(int points) {
     if (points < 500) return 1;
     if (points < 1500) return 2;
     if (points < 3000) return 3;
@@ -690,7 +699,7 @@ class FirestoreService {
     final currentPoints = data['totalPoints'] ?? 0;
     final currentActivities = data['activityCount'] ?? 0;
     final newPoints = currentPoints + points;
-    final newLevel = _calculateLevel(newPoints);
+    final newLevel = calculateLevel(newPoints);
     await _db.collection('users').doc(uid).update({
       'totalPoints': newPoints,
       'activityCount': currentActivities + 1,
