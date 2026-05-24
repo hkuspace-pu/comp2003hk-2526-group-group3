@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../models/focus_session.dart';
-import '../models/activity_log.dart';
-import '../services/firestore_service.dart';
 import '../utils/colors.dart';
 import '../widgets/gradient_background.dart';
+import '../services/firestore_service.dart';
+import '../models/focus_session.dart';
+import '../models/activity_log.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({Key? key}) : super(key: key);
@@ -18,6 +18,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _currentMonth = DateTime.now();
   int _selectedDay = DateTime.now().day;
   bool _isLoading = true;
+  int _activeDaysThisMonth = 0;
 
   List<FocusSession> _sessions = [];
   List<ActivityLog> _activities = [];
@@ -48,34 +49,55 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _activities = activities
             .where((a) => a.loggedAt.isAfter(start) && a.loggedAt.isBefore(end))
             .toList();
+        final daySet = <int>{};
+        for (var s in _sessions) {
+          daySet.add(s.startTime.day);
+        }
+        for (var a in _activities) {
+          daySet.add(a.loggedAt.day);
+        }
+        _activeDaysThisMonth = daySet.length;
         _isLoading = false;
       });
     }
   }
 
-  // Get days that have sessions
+  // days in this month which have at least one session / activity
   Set<int> get _sessionDays => _sessions.map((s) => s.startTime.day).toSet();
-
-  // Get days that have activities
   Set<int> get _activityDays => _activities.map((a) => a.loggedAt.day).toSet();
 
-  // Get sessions for selected day
   List<FocusSession> get _selectedDaySessions =>
       _sessions.where((s) => s.startTime.day == _selectedDay).toList();
 
-  // Get activities for selected day
   List<ActivityLog> get _selectedDayActivities =>
       _activities.where((a) => a.loggedAt.day == _selectedDay).toList();
 
-  int get _selectedDayPoints =>
-      _selectedDaySessions.fold(0, (sum, s) => sum + s.pointsEarned) +
-      _selectedDayActivities.fold(0, (sum, a) => sum + a.pointsEarned);
+  int get _selectedDayPoints {
+    int total = 0;
+    for (var s in _selectedDaySessions) {
+      total += s.pointsEarned;
+    }
+    for (var a in _selectedDayActivities) {
+      total += a.pointsEarned;
+    }
+    return total;
+  }
 
-  int get _selectedDayFocusMinutes =>
-      _selectedDaySessions.fold(0, (sum, s) => sum + s.durationMinutes);
+  int get _selectedDayFocusMinutes {
+    int total = 0;
+    for (var s in _selectedDaySessions) {
+      total += s.durationMinutes;
+    }
+    return total;
+  }
 
-  int get _selectedDayActivityMinutes =>
-      _selectedDayActivities.fold(0, (sum, a) => sum + a.durationMinutes);
+  int get _selectedDayActivityMinutes {
+    int total = 0;
+    for (var a in _selectedDayActivities) {
+      total += a.durationMinutes;
+    }
+    return total;
+  }
 
   String get _monthTitle {
     const months = [
@@ -123,7 +145,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                // Month Header with navigation
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -148,8 +169,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Calendar
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -164,7 +183,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         )
                       : Column(
                           children: [
-                            // Weekday headers
                             const Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
@@ -178,13 +196,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               ],
                             ),
                             const SizedBox(height: 16),
-
-                            // Calendar days
                             _buildCalendarGrid(),
-
                             const SizedBox(height: 16),
-
-                            // Legend
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
@@ -198,8 +211,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                 ),
                 const SizedBox(height: 24),
-
-                // Selected Day Details
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -264,15 +275,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     List<Widget> rows = [];
     List<Widget> currentRow = [];
 
-    // Empty cells before month starts
+    // empty cell at start because the 1st is not always on sunday
     for (int i = 0; i < firstWeekday; i++) {
       currentRow.add(_buildDayCell(0, false));
     }
 
-    // Days of month
     for (int day = 1; day <= daysInMonth; day++) {
       currentRow.add(_buildDayCell(day, true));
-
       if (currentRow.length == 7) {
         rows.add(Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -283,7 +292,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
     }
 
-    // Fill remaining cells
+    // last row maybe not full, pad it
     while (currentRow.length < 7 && currentRow.isNotEmpty) {
       currentRow.add(_buildDayCell(0, false));
     }
