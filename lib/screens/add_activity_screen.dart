@@ -220,6 +220,10 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
       if (!mounted) return;
 
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Activity saved! +$points points 🎉')),
+      );
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -394,8 +398,6 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Photo Evidence
                 const Text(
                   'Photo Evidence (optional)',
                   style: TextStyle(

@@ -1,2 +1,9 @@
 /.dart_tool/*
 /build/*
+
+# AI assistant handoff / scratch files
+CLAUDE.md
+CLAUDE_*.md
+.claude/
+.aider*
+*.ai.md
