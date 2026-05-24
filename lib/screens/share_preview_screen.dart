@@ -103,7 +103,13 @@ class _SharePreviewScreenState extends State<SharePreviewScreen> {
         title: const Text('Share Preview'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (widget.popToRootAfterShare) {
+              Navigator.popUntil(context, (route) => route.isFirst);
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
       ),
       body: GradientBackground(
