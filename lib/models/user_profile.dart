@@ -41,6 +41,9 @@ class UserProfile {
 
   bool get isAdmin => role == 'admin';
 
+  int get totalFishCount =>
+      fishInventory.values.fold(0, (s, v) => s + v);
+
   factory UserProfile.fromFirestore(Map<String, dynamic> data, String uid) {
     final createdAt = data['createdAt']?.toDate() ?? DateTime.now();
     final hungerPercent = (data['hungerPercent'] ?? 100).toDouble();
@@ -66,6 +69,17 @@ class UserProfile {
       }
     }
 
+    // fishInventory is the source of truth; rebuild ownedFish from it when the
+    // legacy list has drifted (store/lucky paths only touch the inventory).
+    final invTotal = fishInventory.values.fold<int>(0, (s, v) => s + v);
+    var owned = ownedFish;
+    if (fishInventory.isNotEmpty && invTotal != owned.length) {
+      owned = [
+        for (final e in fishInventory.entries)
+          for (var i = 0; i < e.value; i++) e.key.split('@').first,
+      ];
+    }
+
     final aquariumFish =
         List<String>.from(data['aquariumFish'] ?? const <String>[]);
 
@@ -80,7 +94,7 @@ class UserProfile {
       activityCount: data['activityCount'] ?? 0,
       currentStreak: data['currentStreak'] ?? 0,
       level: data['level'] ?? 1,
-      ownedFish: List<String>.from(data['ownedFish'] ?? []),
+      ownedFish: owned,
       ownedDecorations: List<String>.from(data['ownedDecorations'] ?? []),
       foodStock: data['foodStock'] ?? 0,
       createdAt: createdAt,
