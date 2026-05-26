@@ -69,10 +69,6 @@ class FirestoreService {
     required String evidenceType,
     required String originalFileName,
   }) async {
-    // IMPORTANT:
-    // - Store a HTTPS download URL (getDownloadURL) in Firestore so Flutter Web can display it.
-    // - Keep storage path in Firestore as well for management (delete / audit).
-
     final safeName = _sanitizeStorageFileName(originalFileName);
     final ext = safeName.contains('.')
         ? safeName.split('.').last.toLowerCase()
@@ -80,7 +76,7 @@ class FirestoreService {
 
     final fileName =
         '${DateTime.now().millisecondsSinceEpoch}_${evidenceType.toLowerCase()}.$ext';
-    final path = 'activity_evidence/$uid/$fileName';
+    final path = 'activity_photos/$uid/$fileName';
 
     final contentType = _guessEvidenceContentType(
       fileName: fileName,
@@ -274,12 +270,9 @@ class FirestoreService {
         }
       }
       if (!data.containsKey('aquariumFish')) {
-        // Pre-populate from legacy ownedFish on first-time migration; brand-new users get [].
         final owned = List<String>.from(data['ownedFish'] ?? const <String>[]);
-        data['aquariumFish'] = owned
-            .map((id) => fishKey(id, 1))
-            .take(maxAquariumFish)
-            .toList();
+        data['aquariumFish'] =
+            owned.map((id) => fishKey(id, 1)).take(maxAquariumFish).toList();
         needWriteBack = true;
       } else {
         final rawTank = List<dynamic>.from(data['aquariumFish'] ?? const []);
@@ -295,9 +288,7 @@ class FirestoreService {
             'fishInventory': data['fishInventory'],
             'aquariumFish': data['aquariumFish'],
           }, SetOptions(merge: true));
-        } catch (_) {
-          // Best-effort migration; surface the in-memory profile even if write-back fails.
-        }
+        } catch (_) {}
       }
       return UserProfile.fromFirestore(data, uid);
     });
@@ -682,13 +673,13 @@ class FirestoreService {
       'notes': notes,
       'pointsEarned': points,
       'loggedAt': DateTime.now(),
-      'evidenceUrl': evidenceUrl,
-      'evidenceType': evidenceType,
-      'evidenceStoragePath': evidenceStoragePath,
+      'evidenceUrl': photoUrl,
+      'evidenceType': 'image',
+      'evidenceStoragePath': photoUrl,
       'evidenceFileName': evidenceFileName,
       'evidenceContentType': evidenceContentType,
-      'hasEvidence': evidenceUrl != null,
-      'evidenceStatus': evidenceUrl != null ? 'pending' : null,
+      'hasEvidence': photoUrl != null,
+      'evidenceStatus': photoUrl != null ? 'pending' : null,
       'evidenceReviewedAt': null,
       'evidenceReviewedByUid': null,
       'evidenceReviewNote': null,

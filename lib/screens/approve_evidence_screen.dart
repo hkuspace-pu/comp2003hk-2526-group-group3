@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -18,124 +19,49 @@ class _ApproveEvidenceScreenState extends State<ApproveEvidenceScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  late final Future<String?> _roleFuture;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _evidenceStream;
+
   String _statusFilter = 'pending';
-  String? _busyDocPath;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    _roleFuture = currentUser == null
+        ? Future<String?>.value(null)
+        : _firestoreService.getUserRole(currentUser.uid);
+    _evidenceStream = _buildEvidenceStream();
+  }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _buildEvidenceStream() {
     return _db
         .collectionGroup('activities')
-        .where('hasEvidence', isEqualTo: true)
         .orderBy('loggedAt', descending: true)
         .snapshots();
   }
 
-  Future<void> _approveEvidence(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) async {
-    final adminUid = FirebaseAuth.instance.currentUser?.uid;
-    if (adminUid == null) return;
+  bool _hasEvidenceData(Map<String, dynamic> data) {
+    final explicitHasEvidence = data['hasEvidence'] == true;
+    final possibleRefs = [
+      data['photoUrl'],
+      data['evidenceUrl'],
+      data['photoGsUrl'],
+      data['evidenceGsUrl'],
+      data['photoStoragePath'],
+      data['evidenceStoragePath'],
+    ];
 
-    setState(() => _busyDocPath = doc.reference.path);
-    try {
-      await doc.reference.update({
-        'evidenceStatus': 'approved',
-        'evidenceReviewedAt': FieldValue.serverTimestamp(),
-        'evidenceReviewedByUid': adminUid,
-        'evidenceReviewNote': null,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Evidence approved successfully.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to approve evidence: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _busyDocPath = null);
-    }
+    return explicitHasEvidence ||
+        possibleRefs.any(
+          (value) => value != null && value.toString().trim().isNotEmpty,
+        );
   }
 
-  Future<void> _rejectEvidence(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) async {
-    final adminUid = FirebaseAuth.instance.currentUser?.uid;
-    if (adminUid == null) return;
-
-    final controller = TextEditingController();
-    final note = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.primaryDarkGrey,
-        title: const Text(
-          'Reject Evidence',
-          style: TextStyle(color: AppColors.textWhite),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Optionally tell the user why the evidence was rejected.',
-              style: TextStyle(color: AppColors.textGrey),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              maxLines: 4,
-              style: const TextStyle(color: AppColors.textWhite),
-              decoration: InputDecoration(
-                hintText: 'Reason for rejection',
-                hintStyle: const TextStyle(color: AppColors.textGrey),
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.06),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.textRed,
-                foregroundColor: AppColors.textWhite),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (note == null) return;
-
-    setState(() => _busyDocPath = doc.reference.path);
-    try {
-      await doc.reference.update({
-        'evidenceStatus': 'rejected',
-        'evidenceReviewedAt': FieldValue.serverTimestamp(),
-        'evidenceReviewedByUid': adminUid,
-        'evidenceReviewNote': note.isEmpty ? null : note,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Evidence rejected.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to reject evidence: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _busyDocPath = null);
-    }
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _evidenceDocs(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    return docs.where((doc) => _hasEvidenceData(doc.data())).toList();
   }
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterDocs(
@@ -166,6 +92,7 @@ class _ApproveEvidenceScreenState extends State<ApproveEvidenceScreen> {
     } else if (value is DateTime) {
       dateTime = value;
     }
+
     if (dateTime == null) return 'Unknown';
 
     final year = dateTime.year.toString().padLeft(4, '0');
@@ -174,6 +101,148 @@ class _ApproveEvidenceScreenState extends State<ApproveEvidenceScreen> {
     final hour = dateTime.hour.toString().padLeft(2, '0');
     final minute = dateTime.minute.toString().padLeft(2, '0');
     return '$year-$month-$day $hour:$minute';
+  }
+
+  Future<void> _approveEvidence(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final adminUid = FirebaseAuth.instance.currentUser?.uid;
+    if (adminUid == null) return;
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+
+    try {
+      await doc.reference.update({
+        'evidenceStatus': 'approved',
+        'evidenceReviewedAt': FieldValue.serverTimestamp(),
+        'evidenceReviewedByUid': adminUid,
+        'evidenceReviewNote': null,
+      });
+
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Evidence approved successfully.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Failed to approve evidence: $e')),
+      );
+    }
+  }
+
+  Future<String?> _showRejectDialog() async {
+    final controller = TextEditingController();
+
+    try {
+      return await showDialog<String>(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: AppColors.primaryDarkGrey,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 24,
+            ),
+            title: const Text(
+              'Reject Evidence',
+              style: TextStyle(color: AppColors.textWhite),
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Optionally tell the user why the evidence was rejected.',
+                      style: TextStyle(color: AppColors.textGrey),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controller,
+                      maxLines: 4,
+                      minLines: 3,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      style: const TextStyle(color: AppColors.textWhite),
+                      decoration: InputDecoration(
+                        hintText: 'Reason for rejection',
+                        hintStyle: const TextStyle(color: AppColors.textGrey),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.06),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final text = controller.text.trim();
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  Navigator.of(dialogContext).pop(text);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.textRed,
+                  foregroundColor: AppColors.textWhite,
+                ),
+                child: const Text('Reject'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _rejectEvidence(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final adminUid = FirebaseAuth.instance.currentUser?.uid;
+    if (adminUid == null || !mounted) return;
+
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    final note = await _showRejectDialog();
+    if (!mounted || note == null) return;
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+
+    try {
+      await doc.reference.update({
+        'evidenceStatus': 'rejected',
+        'evidenceReviewedAt': FieldValue.serverTimestamp(),
+        'evidenceReviewedByUid': adminUid,
+        'evidenceReviewNote': note.isEmpty ? null : note,
+      });
+
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Evidence rejected.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Failed to reject evidence: $e')),
+      );
+    }
   }
 
   @override
@@ -198,9 +267,10 @@ class _ApproveEvidenceScreenState extends State<ApproveEvidenceScreen> {
                   ),
                 )
               : FutureBuilder<String?>(
-                  future: _firestoreService.getUserRole(currentUser.uid),
+                  future: _roleFuture,
                   builder: (context, roleSnapshot) {
-                    if (!roleSnapshot.hasData) {
+                    if (roleSnapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return const Center(
                         child: CircularProgressIndicator(
                           color: AppColors.accentOrange,
@@ -226,7 +296,7 @@ class _ApproveEvidenceScreenState extends State<ApproveEvidenceScreen> {
                     }
 
                     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _buildEvidenceStream(),
+                      stream: _evidenceStream,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
                           return Center(
@@ -253,130 +323,175 @@ class _ApproveEvidenceScreenState extends State<ApproveEvidenceScreen> {
                           );
                         }
 
-                        final docs = snapshot.data!.docs;
+                        final docs = _evidenceDocs(snapshot.data!.docs);
                         final pendingCount = docs
-                            .where((doc) =>
-                                (doc.data()['evidenceStatus'] ?? 'pending') ==
-                                'pending')
+                            .where(
+                              (doc) =>
+                                  (doc.data()['evidenceStatus'] ?? 'pending') ==
+                                  'pending',
+                            )
                             .length;
                         final approvedCount = docs
-                            .where((doc) =>
-                                doc.data()['evidenceStatus'] == 'approved')
+                            .where(
+                              (doc) =>
+                                  doc.data()['evidenceStatus'] == 'approved',
+                            )
                             .length;
                         final rejectedCount = docs
-                            .where((doc) =>
-                                doc.data()['evidenceStatus'] == 'rejected')
+                            .where(
+                              (doc) =>
+                                  doc.data()['evidenceStatus'] == 'rejected',
+                            )
                             .length;
                         final filteredDocs = _filterDocs(docs);
 
-                        return ListView(
+                        return ListView.builder(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
                           padding: const EdgeInsets.all(20),
-                          children: [
-                            const SizedBox(height: 24),
-                            const Text(
-                              '🛂 Evidence Review Queue',
-                              style: TextStyle(
-                                color: AppColors.textWhite,
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.cardBackground,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _StatusFilterCard(
-                                          label: 'Pending',
-                                          value: pendingCount.toString(),
-                                          icon: Icons.hourglass_top,
-                                          selected: _statusFilter == 'pending',
-                                          color: AppColors.accentOrange,
-                                          onTap: () => setState(
-                                              () => _statusFilter = 'pending'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: _StatusFilterCard(
-                                          label: 'Approved',
-                                          value: approvedCount.toString(),
-                                          icon: Icons.verified,
-                                          selected: _statusFilter == 'approved',
-                                          color: const Color(0xFF22C55E),
-                                          onTap: () => setState(
-                                              () => _statusFilter = 'approved'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: _StatusFilterCard(
-                                          label: 'Rejected',
-                                          value: rejectedCount.toString(),
-                                          icon: Icons.cancel_outlined,
-                                          selected: _statusFilter == 'rejected',
-                                          color: const Color(0xFFFF4D67),
-                                          onTap: () => setState(
-                                              () => _statusFilter = 'rejected'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            if (filteredDocs.isEmpty)
-                              Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: AppColors.cardBackground,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: const Text(
-                                  'No evidence found for the selected review status.',
+                          itemCount: filteredDocs.length + 3,
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              return const Padding(
+                                padding: EdgeInsets.only(top: 24, bottom: 12),
+                                child: Text(
+                                  '🛂 Evidence Review Queue',
                                   style: TextStyle(
-                                    color: AppColors.textGrey,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textWhite,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              )
-                            else
-                              ...filteredDocs.map(
-                                (doc) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 14),
-                                  child: _EvidenceCard(
-                                    doc: doc,
-                                    busy: _busyDocPath == doc.reference.path,
-                                    statusColor: _statusColor(
-                                      (doc.data()['evidenceStatus'] ??
-                                              'pending')
-                                          .toString(),
+                              );
+                            }
+
+                            if (index == 1) {
+                              return _EvidenceStatusPanel(
+                                statusFilter: _statusFilter,
+                                pendingCount: pendingCount,
+                                approvedCount: approvedCount,
+                                rejectedCount: rejectedCount,
+                                onFilterChanged: (value) {
+                                  if (!mounted) return;
+                                  setState(() => _statusFilter = value);
+                                },
+                              );
+                            }
+
+                            if (filteredDocs.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 20),
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.cardBackground,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Text(
+                                    'No evidence found for the selected review status.',
+                                    style: TextStyle(
+                                      color: AppColors.textGrey,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                    formattedLoggedAt:
-                                        _formatDate(doc.data()['loggedAt']),
-                                    onApprove: () => _approveEvidence(doc),
-                                    onReject: () => _rejectEvidence(doc),
                                   ),
                                 ),
+                              );
+                            }
+
+                            final docIndex = index - 2;
+                            if (docIndex < 0 ||
+                                docIndex >= filteredDocs.length) {
+                              return const SizedBox(height: 24);
+                            }
+
+                            final doc = filteredDocs[docIndex];
+                            final data = doc.data();
+                            final status = (data['evidenceStatus'] ?? 'pending')
+                                .toString();
+
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 14),
+                              child: _EvidenceCard(
+                                key: ValueKey(doc.reference.path),
+                                doc: doc,
+                                statusColor: _statusColor(status),
+                                formattedLoggedAt:
+                                    _formatDate(data['loggedAt']),
+                                onApprove: () => _approveEvidence(doc),
+                                onReject: () => _rejectEvidence(doc),
                               ),
-                            const SizedBox(height: 24),
-                          ],
+                            );
+                          },
                         );
                       },
                     );
                   },
                 ),
         ),
+      ),
+    );
+  }
+}
+
+class _EvidenceStatusPanel extends StatelessWidget {
+  const _EvidenceStatusPanel({
+    required this.statusFilter,
+    required this.pendingCount,
+    required this.approvedCount,
+    required this.rejectedCount,
+    required this.onFilterChanged,
+  });
+
+  final String statusFilter;
+  final int pendingCount;
+  final int approvedCount;
+  final int rejectedCount;
+  final ValueChanged<String> onFilterChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatusFilterCard(
+              label: 'Pending',
+              value: pendingCount.toString(),
+              icon: Icons.hourglass_top,
+              selected: statusFilter == 'pending',
+              color: AppColors.accentOrange,
+              onTap: () => onFilterChanged('pending'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatusFilterCard(
+              label: 'Approved',
+              value: approvedCount.toString(),
+              icon: Icons.verified,
+              selected: statusFilter == 'approved',
+              color: const Color(0xFF22C55E),
+              onTap: () => onFilterChanged('approved'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatusFilterCard(
+              label: 'Rejected',
+              value: rejectedCount.toString(),
+              icon: Icons.cancel_outlined,
+              selected: statusFilter == 'rejected',
+              color: const Color(0xFFFF4D67),
+              onTap: () => onFilterChanged('rejected'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -422,11 +537,7 @@ class _StatusFilterCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: Colors.white,
-                ),
+                Icon(icon, size: 18, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -460,8 +571,8 @@ class _StatusFilterCard extends StatelessWidget {
 
 class _EvidenceCard extends StatelessWidget {
   const _EvidenceCard({
+    super.key,
     required this.doc,
-    required this.busy,
     required this.statusColor,
     required this.formattedLoggedAt,
     required this.onApprove,
@@ -469,7 +580,6 @@ class _EvidenceCard extends StatelessWidget {
   });
 
   final QueryDocumentSnapshot<Map<String, dynamic>> doc;
-  final bool busy;
   final Color statusColor;
   final String formattedLoggedAt;
   final VoidCallback onApprove;
@@ -481,7 +591,14 @@ class _EvidenceCard extends StatelessWidget {
     final uid = (data['uid'] ?? '').toString();
     final status = (data['evidenceStatus'] ?? 'pending').toString();
     final evidenceType = (data['evidenceType'] ?? 'image').toString();
-    final evidenceUrl = (data['evidenceUrl'] ?? '').toString();
+    final evidenceRef = (data['photoUrl'] ??
+            data['evidenceUrl'] ??
+            data['photoGsUrl'] ??
+            data['evidenceGsUrl'] ??
+            data['photoStoragePath'] ??
+            data['evidenceStoragePath'] ??
+            '')
+        .toString();
     final activityType =
         (data['activityType'] ?? 'Unknown Activity').toString();
     final mood = (data['mood'] ?? '-').toString();
@@ -518,42 +635,7 @@ class _EvidenceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                      future: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(uid)
-                          .get(),
-                      builder: (context, snapshot) {
-                        final userData =
-                            snapshot.data?.data() ?? const <String, dynamic>{};
-                        final displayName =
-                            (userData['displayName'] ?? 'Unknown User')
-                                .toString();
-                        final email =
-                            (userData['email'] ?? 'No email').toString();
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayName,
-                              style: const TextStyle(
-                                color: AppColors.textWhite,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              email,
-                              style: const TextStyle(
-                                color: AppColors.textWhite,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                    _UserInfo(uid: uid),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -611,8 +693,9 @@ class _EvidenceCard extends StatelessWidget {
           ],
           const SizedBox(height: 14),
           _EvidencePreview(
+            key: ValueKey(evidenceRef),
             evidenceType: evidenceType,
-            evidenceUrl: evidenceUrl,
+            evidenceRef: evidenceRef,
           ),
           if (reviewNote.trim().isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -636,9 +719,7 @@ class _EvidenceCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     reviewNote,
-                    style: const TextStyle(
-                      color: AppColors.textWhite,
-                    ),
+                    style: const TextStyle(color: AppColors.textWhite),
                   ),
                 ],
               ),
@@ -650,13 +731,10 @@ class _EvidenceCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: busy ? null : onApprove,
+                    onPressed: onApprove,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryDarkGrey,
                       foregroundColor: AppColors.accentOrange,
-                      disabledBackgroundColor:
-                          const Color(0xFF22C55E).withValues(alpha: 0.45),
-                      disabledForegroundColor: Colors.white70,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -678,22 +756,16 @@ class _EvidenceCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: busy ? null : onReject,
+                    onPressed: onReject,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.textRed,
                       foregroundColor: AppColors.textWhite,
-                      disabledBackgroundColor:
-                          const Color(0xFFFF4D67).withValues(alpha: 0.45),
-                      disabledForegroundColor: Colors.white70,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    icon: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                    ),
+                    icon: const Icon(Icons.close, color: Colors.white),
                     label: const Text(
                       'Reject',
                       style: TextStyle(
@@ -736,15 +808,63 @@ class _EvidenceCard extends StatelessWidget {
                 ],
               ),
             ),
-          if (busy) ...[
-            const SizedBox(height: 12),
-            const LinearProgressIndicator(
-              color: AppColors.accentOrange,
-              minHeight: 3,
-            ),
-          ],
         ],
       ),
+    );
+  }
+}
+
+class _UserInfo extends StatefulWidget {
+  const _UserInfo({required this.uid});
+
+  final String uid;
+
+  @override
+  State<_UserInfo> createState() => _UserInfoState();
+}
+
+class _UserInfoState extends State<_UserInfo> {
+  late final Future<DocumentSnapshot<Map<String, dynamic>>> _userFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userFuture =
+        FirebaseFirestore.instance.collection('users').doc(widget.uid).get();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: _userFuture,
+      builder: (context, snapshot) {
+        final userData = snapshot.data?.data() ?? const <String, dynamic>{};
+        final displayName =
+            (userData['displayName'] ?? 'Unknown User').toString();
+        final email = (userData['email'] ?? 'No email').toString();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              displayName,
+              style: const TextStyle(
+                color: AppColors.textWhite,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              email,
+              style: const TextStyle(
+                color: AppColors.textWhite,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -778,18 +898,64 @@ class _PillTag extends StatelessWidget {
   }
 }
 
-class _EvidencePreview extends StatelessWidget {
+class _EvidencePreview extends StatefulWidget {
   const _EvidencePreview({
+    super.key,
     required this.evidenceType,
-    required this.evidenceUrl,
+    required this.evidenceRef,
   });
 
   final String evidenceType;
-  final String evidenceUrl;
+  final String evidenceRef;
+
+  @override
+  State<_EvidencePreview> createState() => _EvidencePreviewState();
+}
+
+class _EvidencePreviewState extends State<_EvidencePreview> {
+  static const String _activityPhotosBucketUrl =
+      'gs://focus-aquarium.firebasestorage.app';
+
+  late Future<String> _downloadUrlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _downloadUrlFuture = _resolveDownloadUrl(widget.evidenceRef);
+  }
+
+  @override
+  void didUpdateWidget(covariant _EvidencePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.evidenceRef != widget.evidenceRef) {
+      _downloadUrlFuture = _resolveDownloadUrl(widget.evidenceRef);
+    }
+  }
+
+  bool _isHttpUrl(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
+  Future<String> _resolveDownloadUrl(String value) async {
+    final refValue = value.trim();
+    if (refValue.isEmpty) return '';
+
+    if (_isHttpUrl(refValue)) return refValue;
+
+    if (refValue.startsWith('gs://')) {
+      return FirebaseStorage.instance.refFromURL(refValue).getDownloadURL();
+    }
+
+    final storage = FirebaseStorage.instanceFor(
+      bucket: _activityPhotosBucketUrl,
+    );
+    return storage.ref(refValue).getDownloadURL();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (evidenceUrl.trim().isEmpty) {
+    if (widget.evidenceRef.trim().isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -804,27 +970,62 @@ class _EvidencePreview extends StatelessWidget {
       );
     }
 
-    if (evidenceType == 'video') {
-      return _VideoEvidencePlayer(url: evidenceUrl);
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Image.network(
-          evidenceUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: AppColors.primaryDarkGrey.withValues(alpha: 0.24),
+    return FutureBuilder<String>(
+      future: _downloadUrlFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 220,
+            decoration: BoxDecoration(
+              color: AppColors.primaryDarkGrey.withValues(alpha: 0.24),
+              borderRadius: BorderRadius.circular(14),
+            ),
             alignment: Alignment.center,
-            child: const Text(
-              'Failed to load image evidence.',
-              style: TextStyle(color: AppColors.textGrey),
+            child: const CircularProgressIndicator(
+              color: AppColors.accentOrange,
+            ),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primaryDarkGrey.withValues(alpha: 0.24),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              'Failed to load evidence from Storage: ${snapshot.error ?? 'missing download URL'}',
+              style: const TextStyle(color: AppColors.textGrey),
+            ),
+          );
+        }
+
+        final downloadUrl = snapshot.data!;
+        if (widget.evidenceType == 'video') {
+          return _VideoEvidencePlayer(url: downloadUrl);
+        }
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Image.network(
+              downloadUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: AppColors.primaryDarkGrey.withValues(alpha: 0.24),
+                alignment: Alignment.center,
+                child: const Text(
+                  'Failed to load image evidence.',
+                  style: TextStyle(color: AppColors.textGrey),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -855,15 +1056,17 @@ class _VideoEvidencePlayerState extends State<_VideoEvidencePlayer> {
           VideoPlayerController.networkUrl(Uri.parse(widget.url));
       await controller.initialize();
       controller.setLooping(true);
+
       if (!mounted) {
         await controller.dispose();
         return;
       }
+
       setState(() {
         _controller = controller;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _error = 'Failed to load video evidence.';
