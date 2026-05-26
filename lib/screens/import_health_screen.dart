@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:health/health.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -15,6 +17,7 @@ class HealthImportItem {
   final String mappedActivityType;
   final String source;
   final String? notes;
+  final String? evidencePhotoPath;
 
   const HealthImportItem({
     required this.start,
@@ -23,6 +26,7 @@ class HealthImportItem {
     required this.mappedActivityType,
     required this.source,
     this.notes,
+    this.evidencePhotoPath,
   });
 }
 
@@ -40,7 +44,8 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
   String? _error;
 
   final List<_Candidate> _all = [];
-  final Set<String> _selectedIds = {};
+  String? _selectedId;
+  final Map<String, GlobalKey> _rowKeys = <String, GlobalKey>{};
 
   @override
   void initState() {
@@ -91,32 +96,42 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Seed only supported on Android (Health Connect).')),
+          content: Text('Seed only supported on Android (Health Connect).'),
+        ),
       );
       return;
     }
 
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     try {
       final okWrite = await _ensureWritePermission();
       if (!okWrite) {
         if (!mounted) return;
-
         setState(() => _loading = false);
-
         await showDialog<void>(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Write permission required'),
             content: const Text(
-              'Health Connect not granted write permission\n\n'
-              'please go to Health Connect → App permissions, find Focus Aquarium and grant write permission for workout data, then try seeding again.',
+              'Health Connect has not granted write permission.\n\n'
+              'Please go to Health Connect → App permissions, find Focus Aquarium '
+              'and grant Exercise permission, then try seeding again.',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _openHealthConnectManageAccess();
+                },
+                child: const Text('Open Health Connect'),
               ),
             ],
           ),
@@ -128,12 +143,12 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
       final sessions = <({
         HealthWorkoutActivityType activity,
         DateTime start,
-        DateTime end
+        DateTime end,
       })>[
         (
-          activity: HealthWorkoutActivityType.RUNNING,
+          activity: HealthWorkoutActivityType.YOGA,
           start: now.subtract(const Duration(hours: 2)),
-          end: now.subtract(const Duration(hours: 1, minutes: 15)),
+          end: now.subtract(const Duration(hours: 0, minutes: 21)),
         ),
         (
           activity: HealthWorkoutActivityType.RUNNING,
@@ -161,56 +176,48 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
         const SnackBar(content: Text('Seeded 3 workouts into Health Connect')),
       );
 
+      final okRead = await _ensureReadPermission(force: true);
+      if (!okRead) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        await showDialog<void>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Read permission required'),
+            content: const Text(
+              'The test workouts were created, but the app cannot read them yet.\n\n'
+              'Please grant Exercise, Distance, Total Calories Burned, and Steps read '
+              'permissions in Health Connect, then press Refresh.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _openHealthConnectManageAccess();
+                },
+                child: const Text('Open Health Connect'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      await Future.delayed(const Duration(seconds: 2));
       await _load(forceRequestPermission: false);
     } catch (e) {
       if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Seed failed: $e')),
       );
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-
-    final hasWrite = await _health.hasPermissions(
-      [HealthDataType.WORKOUT],
-      permissions: [HealthDataAccess.READ_WRITE],
-    );
-    debugPrint('hasPermissions(WORKOUT, READ_WRITE) = $hasWrite');
-
-    final granted = await _health.requestAuthorization(
-      [HealthDataType.WORKOUT],
-      permissions: [HealthDataAccess.READ_WRITE],
-    );
-    debugPrint('requestAuthorization(WORKOUT, READ_WRITE) = $granted');
-
-    if (!granted) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-
-      await showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Write permission required'),
-          content: const Text(
-            'Health Connect not granted write permission\n\n'
-            'please go to Health Connect → App permissions, find Focus Aquarium and grant write permission for workout data, then try seeding again.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await _openHealthConnectManageAccess();
-              },
-              child: const Text('Open Health Connect'),
-            ),
-          ],
-        ),
-      );
-      return;
     }
   }
 
@@ -228,30 +235,49 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
   }
 
   Future<bool> _ensureReadPermission({bool force = false}) async {
-    final types = <HealthDataType>[HealthDataType.WORKOUT];
+    final types = <HealthDataType>[
+      HealthDataType.WORKOUT,
+      HealthDataType.DISTANCE_DELTA,
+      HealthDataType.TOTAL_CALORIES_BURNED,
+      HealthDataType.STEPS,
+    ];
+
+    final permissions = List<HealthDataAccess>.filled(
+      types.length,
+      HealthDataAccess.READ,
+    );
 
     if (!force) {
       final has = await _health.hasPermissions(
         types,
-        permissions: [HealthDataAccess.READ],
+        permissions: permissions,
       );
-      debugPrint('hasPermissions(WORKOUT, READ) = $has');
+      debugPrint(
+        'hasPermissions(WORKOUT + DISTANCE_DELTA + TOTAL_CALORIES_BURNED + STEPS, READ) = $has',
+      );
       if (has == true) return true;
     }
 
     final granted = await _health.requestAuthorization(
       types,
-      permissions: [HealthDataAccess.READ],
+      permissions: permissions,
     );
-    debugPrint('requestAuthorization(WORKOUT, READ) = $granted');
+    debugPrint(
+      'requestAuthorization(WORKOUT + DISTANCE_DELTA + TOTAL_CALORIES_BURNED + STEPS, READ) = $granted',
+    );
     return granted;
   }
 
   Future<bool> _ensureWritePermission() async {
     final types = <HealthDataType>[HealthDataType.WORKOUT];
+    final permissions = List<HealthDataAccess>.filled(
+      types.length,
+      HealthDataAccess.READ_WRITE,
+    );
+
     final granted = await _health.requestAuthorization(
       types,
-      permissions: [HealthDataAccess.READ_WRITE],
+      permissions: permissions,
     );
     debugPrint('requestAuthorization(WORKOUT, READ_WRITE) = $granted');
     return granted;
@@ -269,20 +295,29 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
         throw Exception('Health permission not granted');
       }
 
-      if (!ok) {
-        throw Exception('Health permission not granted');
-      }
-
       final now = DateTime.now();
       final start = now.subtract(const Duration(days: 3));
-      final types = <HealthDataType>[HealthDataType.WORKOUT];
+
+      final types = <HealthDataType>[
+        HealthDataType.WORKOUT,
+      ];
       final points = await _health.getHealthDataFromTypes(
         startTime: start,
         endTime: now,
         types: types,
       );
 
-      final deduped = _health.removeDuplicates(points);
+      for (var p in points) {
+        print("TYPE: ${p.type}");
+        print("VALUE: ${p.value}");
+        print("FROM: ${p.dateFrom}");
+        print("TO: ${p.dateTo}");
+        print("SOURCE: ${p.sourceName}");
+      }
+
+      final deduped = _health
+          .removeDuplicates(points)
+          .where((p) => p.type == HealthDataType.WORKOUT);
 
       _all
         ..clear()
@@ -312,7 +347,12 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
 
       _all.sort((a, b) => b.start.compareTo(a.start));
 
-      _selectedIds.removeWhere((id) => !_all.any((c) => c.id == id));
+      if (_selectedId != null && !_all.any((c) => c.id == _selectedId)) {
+        _selectedId = null;
+      }
+      _rowKeys
+        ..clear()
+        ..addEntries(_all.map((c) => MapEntry(c.id, GlobalKey())));
 
       if (!mounted) return;
       setState(() => _loading = false);
@@ -327,32 +367,55 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
 
   void _toggle(String id, bool selected) {
     setState(() {
-      if (selected) {
-        _selectedIds.add(id);
-      } else {
-        _selectedIds.remove(id);
-      }
+      _selectedId = selected ? id : null;
     });
   }
 
-  void _importSelected() {
-    final selected = _all.where((c) => _selectedIds.contains(c.id)).toList();
+  Future<String?> _captureSelectedRowPhoto(String id) async {
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      final boundary = _rowKeys[id]?.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return null;
 
-    final items = selected
-        .map(
-          (c) => HealthImportItem(
-            start: c.start,
-            end: c.end,
-            durationMinutes: c.minutes,
-            mappedActivityType: c.mappedActivityType,
-            source: c.source,
-            notes:
-                'Imported from Health (${c.source})\n${c.start.toLocal()} - ${c.end.toLocal()}',
-          ),
-        )
-        .toList();
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return null;
 
-    Navigator.pop(context, items);
+      final bytes = byteData.buffer.asUint8List();
+      final file = File(
+        '${Directory.systemTemp.path}/health_import_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(bytes, flush: true);
+      return file.path;
+    } catch (e) {
+      debugPrint('Failed to capture selected health row: $e');
+      return null;
+    }
+  }
+
+  Future<void> _importSelected() async {
+    final selectedId = _selectedId;
+    if (selectedId == null) return;
+
+    final selected = _all.where((c) => c.id == selectedId).toList();
+    if (selected.isEmpty) return;
+
+    final c = selected.first;
+    final evidencePhotoPath = await _captureSelectedRowPhoto(c.id);
+
+    final item = HealthImportItem(
+      start: c.start,
+      end: c.end,
+      durationMinutes: c.minutes,
+      mappedActivityType: c.mappedActivityType,
+      source: c.source,
+      notes: 'This data is imported from Health',
+      evidencePhotoPath: evidencePhotoPath,
+    );
+
+    if (!mounted) return;
+    Navigator.pop(context, item);
   }
 
   @override
@@ -429,14 +492,17 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
                               }
 
                               final c = _all[index - 1];
-                              final checked = _selectedIds.contains(c.id);
+                              final checked = _selectedId == c.id;
 
-                              return _ImportRow(
-                                checked: checked,
-                                onChanged: (v) => _toggle(c.id, v),
-                                activity: c.mappedActivityType,
-                                minutesText: '${c.minutes} mins',
-                                dateText: _formatDate(c.start),
+                              return RepaintBoundary(
+                                key: _rowKeys[c.id],
+                                child: _ImportRow(
+                                  checked: checked,
+                                  onChanged: (v) => _toggle(c.id, v),
+                                  activity: c.mappedActivityType,
+                                  minutesText: '${c.minutes} mins',
+                                  dateText: _formatDate(c.start),
+                                ),
                               );
                             },
                           ),
@@ -448,7 +514,7 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
                             height: 56,
                             child: ElevatedButton(
                               onPressed:
-                                  _selectedIds.isEmpty ? null : _importSelected,
+                                  _selectedId == null ? null : _importSelected,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primaryDarkGrey,
                                 shape: RoundedRectangleBorder(
@@ -456,7 +522,9 @@ class _ImportHealthScreenState extends State<ImportHealthScreen> {
                                 ),
                               ),
                               child: Text(
-                                'import (${_selectedIds.length})',
+                                _selectedId == null
+                                    ? 'import (0)'
+                                    : 'import (1)',
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -510,44 +578,78 @@ class _ImportRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rowColor = checked
+        ? AppColors.accentOrange.withValues(alpha: 0.92)
+        : AppColors.cardBackground;
+    final borderColor = checked ? Colors.white : Colors.transparent;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      padding: checked ? const EdgeInsets.all(4) : EdgeInsets.zero,
+      decoration: BoxDecoration(
+        color: checked ? AppColors.accentOrange.withValues(alpha: 0.22) : null,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: checked ? AppColors.accentOrange : Colors.transparent,
+          width: checked ? 2 : 0,
+        ),
+        boxShadow: checked
+            ? [
+                BoxShadow(
+                  color: AppColors.accentOrange.withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
       child: Row(
         children: [
           InkWell(
             onTap: () => onChanged(!checked),
-            child: Container(
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(8),
+                color:
+                    checked ? AppColors.accentOrange : AppColors.cardBackground,
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: checked ? AppColors.accentOrange : Colors.transparent,
+                  color: checked ? Colors.white : Colors.transparent,
                   width: 2,
                 ),
               ),
               child: checked
-                  ? const Icon(Icons.check, color: AppColors.accentOrange)
-                  : null,
+                  ? const Icon(Icons.radio_button_checked, color: Colors.white)
+                  : const Icon(Icons.radio_button_unchecked,
+                      color: Colors.white54),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  _Cell(text: activity),
-                  _Divider(),
-                  _Cell(text: minutesText),
-                  _Divider(),
-                  _Cell(text: dateText),
-                ],
+            child: InkWell(
+              onTap: () => onChanged(!checked),
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                height: 52,
+                decoration: BoxDecoration(
+                  color: rowColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: borderColor, width: checked ? 1.5 : 0),
+                ),
+                child: Row(
+                  children: [
+                    _Cell(text: activity),
+                    _Divider(),
+                    _Cell(text: minutesText),
+                    _Divider(),
+                    _Cell(text: dateText),
+                  ],
+                ),
               ),
             ),
           ),

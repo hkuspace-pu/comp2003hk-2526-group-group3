@@ -34,6 +34,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
   bool _isSaving = false;
   File? _selectedPhoto;
+  bool _isImportedFromHealth = false;
 
   @override
   void dispose() {
@@ -149,43 +150,29 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   }
 
   Future<void> _openImport() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final result = await Navigator.push<List<HealthImportItem>>(
+    final result = await Navigator.push<HealthImportItem>(
       context,
       MaterialPageRoute(builder: (_) => const ImportHealthScreen()),
     );
 
-    if (!mounted || result == null || result.isEmpty) return;
+    if (!mounted || result == null) return;
 
-    setState(() => _isSaving = true);
-    try {
-      for (final item in result) {
-        await _firestoreService.saveActivityLog(
-          uid: user.uid,
-          activityType: item.mappedActivityType,
-          durationMinutes: item.durationMinutes,
-          mood: _selectedMood,
-          notes: (item.notes ?? '').trim().isEmpty
-              ? 'Imported from Health (${item.source})\n${item.start.toLocal()} - ${item.end.toLocal()}'
-              : item.notes!.trim(),
-        );
+    setState(() {
+      _isImportedFromHealth = true;
+      _selectedActivity = result.mappedActivityType;
+      _durationController.text = result.durationMinutes.toString();
+      _notesController.text = 'This data is imported from Health';
+      if (result.evidencePhotoPath != null &&
+          result.evidencePhotoPath!.trim().isNotEmpty) {
+        _selectedPhoto = File(result.evidencePhotoPath!);
       }
+    });
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Imported ${result.length} activities from Health')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Import failed: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Health data imported. Please review and submit.'),
+      ),
+    );
   }
 
   Future<void> _saveActivity() async {
@@ -231,6 +218,9 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
             imageBytes: bytes,
             shareText: 'Activity saved! +$points points 🎉',
             popToRootAfterShare: true,
+            canExportToHealth: !_isImportedFromHealth,
+            exportActivityType: _selectedActivity,
+            exportDurationMinutes: duration,
           ),
         ),
       );
