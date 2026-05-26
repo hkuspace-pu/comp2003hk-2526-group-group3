@@ -24,8 +24,8 @@ After downloading or cloning this project from GitHub, run the following command
 ```bash
 flutter clean
 flutter pub get
-flutter build apk (for android)
-flutter build web (for website)
+flutter build apk
+flutter build web
 ```
 
 These commands help clean old build files, install all required dependencies, and build the project for the first time.
