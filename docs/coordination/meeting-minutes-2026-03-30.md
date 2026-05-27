@@ -1,13 +1,9 @@
-# Sprint Review Meeting — 30 March 2026
-
-Attendees: Chow Hoi Yin Hidy, Wong Kin Cheong Kenny, 
-           Yeung Tsz Kin Ryan, Ho Chiu Ming Ian
-Facilitator: Chow Hoi Yin Hidy (Scrum Master)
-
 ## Discussion
 - Reviewed Functions 1-6 progress
-- Agreed to extend scope with additional functions
-- Discussed feature assignments for extended scope
+- Originally, functions 1-6 were supposed to be completed equally by groups 3A and 3B. 
+However, group 3B rushed to complete functions 1-6 before the deadline. 
+Therefore, we are now discussing adding a few more functions for group 3A 
+to balance the contributions.
 
 ## Action Items
 - Scrum Master: Update Trello with new function assignments by 4 April 2026
